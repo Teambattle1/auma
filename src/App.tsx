@@ -171,8 +171,7 @@ export default function App() {
 
       <header className="bg-white shadow-sm border-b-2 border-red-600">
         <div className="max-w-5xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-800">AUMA Kundekartotek</h1>
-          <p className="text-sm text-gray-500 mt-1">Kundedatabase med billeder og scanning</p>
+          <h1 className="text-2xl font-bold text-gray-800">AUMA <span className="text-red-600">FLOW</span></h1>
         </div>
       </header>
 
