@@ -183,40 +183,99 @@ export default function App() {
     setScanPendingExtracted(extractedImages || [])
   }
 
-  // Step 2: user confirms mapping -> apply data
+  // Step 2: user confirms mapping -> split into kunde + flow, auto-create vehicle
   const handleScanConfirm = async (data: Record<string, string>) => {
-    setFormData(prev => ({
-      ...prev,
-      ...Object.fromEntries(
-        Object.entries(data).filter(([_, v]) => v !== '' && v !== undefined)
-      ),
-    }))
-    setView(selectedCustomer ? 'edit' : 'create')
+    // Split data into customer fields and flow fields
+    const kundeData: Record<string, string> = {}
+    const flowData: Record<string, string> = {}
+    for (const [k, v] of Object.entries(data)) {
+      if (!v || !v.trim()) continue
+      if (flowFields.has(k)) {
+        flowData[k] = v
+      } else {
+        kundeData[k] = v
+      }
+    }
 
-    const hasFlow = Object.keys(data).some(k => flowFields.has(k))
-    const hasKunde = Object.keys(data).some(k => !flowFields.has(k))
-    if (hasFlow && !hasKunde) {
-      setActiveTab('flow')
+    // Apply customer fields to form
+    if (Object.keys(kundeData).length > 0) {
+      setFormData(prev => ({ ...prev, ...kundeData }))
+    }
+
+    const hasFlow = Object.keys(flowData).length > 0
+    const hasKunde = Object.keys(kundeData).length > 0
+
+    // Ensure customer exists first (auto-create if needed)
+    let custId = selectedCustomer?.id
+    if (!custId && (hasKunde || hasFlow)) {
+      // Auto-create customer with scanned data
+      const newCust = { ...emptyCustomer, ...kundeData }
+      const { data: created, error } = await supabase
+        .from('customers')
+        .insert([newCust])
+        .select()
+        .single()
+      if (error) { showMessage('Fejl: ' + error.message); return }
+      setSelectedCustomer(created)
+      custId = created.id
+      setView('edit')
+      await loadCustomers()
     } else {
-      setActiveTab('kunde')
+      setView(selectedCustomer ? 'edit' : 'create')
+    }
+
+    // Auto-create vehicle with flow data if we have flow fields
+    if (hasFlow && custId) {
+      const vehicleData = {
+        customer_id: custId,
+        emne: flowData.emne || '',
+        ordrenr: flowData.ordrenr || '',
+        flow_id: flowData.flow_id || '',
+        foererhus: flowData.foererhus || '',
+        skaerme: flowData.skaerme || '',
+        kofanger: flowData.kofanger || '',
+        solskaerm: flowData.solskaerm || '',
+        stige: flowData.stige || '',
+        tagbagage: flowData.tagbagage || '',
+        luftfilter: flowData.luftfilter || '',
+        spoiler: flowData.spoiler || '',
+        striber_dek: flowData.striber_dek || '',
+        skrifttype: flowData.skrifttype || '',
+        undervogn: flowData.undervogn || '',
+        hjul: flowData.hjul || '',
+        kant_paa_hjul: flowData.kant_paa_hjul || '',
+        vaerktoejsks: flowData.vaerktoejsks || '',
+        tank: flowData.tank || '',
+        kran: flowData.kran || '',
+        lift: flowData.lift || '',
+        lad_opbyg: flowData.lad_opbyg || '',
+        fjelder: flowData.fjelder || '',
+        kasse: flowData.kasse || '',
+        folienr: flowData.folienr || '',
+        bemaerkninger: flowData.bemaerkninger || '',
+      }
+      await supabase.from('customer_vehicles').insert([vehicleData])
     }
 
     // Handle extracted images
     const imgs = scanPendingExtracted
-    if (imgs.length > 0) {
-      if (selectedCustomer) {
-        await uploadExtractedImages(selectedCustomer.id, imgs)
-        loadImages(selectedCustomer.id)
-        showMessage(`Data udfyldt + ${imgs.length} billede(r) uploadet!`)
-      } else {
-        setPendingImages(imgs)
-        showMessage(`Data udfyldt! ${imgs.length} billede(r) uploades efter oprettelse.`)
-      }
-    } else {
-      showMessage('Data udfyldt fra scanning!')
+    if (imgs.length > 0 && custId) {
+      await uploadExtractedImages(custId, imgs)
+      loadImages(custId)
     }
+
+    // Switch to the right tab
+    if (hasFlow) {
+      setActiveTab('flow')
+      showMessage(`Kunde + bil oprettet fra scan!${imgs.length > 0 ? ` ${imgs.length} billede(r) uploadet.` : ''}`)
+    } else {
+      setActiveTab('kunde')
+      showMessage('Kundedata udfyldt fra scan!')
+    }
+
     setScanPreviewData(null)
     setScanPendingExtracted([])
+    setPendingImages([])
   }
 
   const handleScanCancel = () => {
