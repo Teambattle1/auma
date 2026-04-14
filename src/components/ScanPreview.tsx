@@ -136,7 +136,7 @@ export default function ScanPreview({ parsed, onConfirm, onCancel }: Props) {
       <div className="flex gap-2 mt-4 pt-3 border-t border-gray-200">
         <button
           onClick={() => onConfirm(Object.fromEntries(Object.entries(data).filter(([_, v]) => v && v.trim())))}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
+          className="btn-red"
         >
           Anvend data
         </button>

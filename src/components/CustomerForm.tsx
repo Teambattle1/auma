@@ -84,7 +84,7 @@ export default function CustomerForm({ formData, setFormData }: Props) {
       {/* Upload scan bar */}
       <div className="mb-4">
         <div className="flex flex-wrap items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <label className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium cursor-pointer hover:bg-purple-700 transition-colors">
+          <label className="btn-red inline-flex items-center gap-2 cursor-pointer">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
@@ -102,7 +102,7 @@ export default function CustomerForm({ formData, setFormData }: Props) {
           {scanning && (
             <div className="flex items-center gap-2 flex-1 min-w-[150px]">
               <div className="flex-1 bg-purple-200 rounded-full h-2">
-                <div className="bg-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
+                <div className="bg-red-600 h-2 rounded-full transition-all duration-300" style={{ width: `${scanProgress}%` }} />
               </div>
               <span className="text-xs text-purple-600 font-medium whitespace-nowrap">{scanProgress}%</span>
             </div>
