@@ -9,20 +9,16 @@ export function parseScannedText(text: string): Record<string, string> {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const fullText = lines.join(' ')
 
-  // Email
-  const emailMatch = fullText.match(/[\w.-]+@[\w.-]+\.\w{2,}/i)
-  if (emailMatch) result.email = emailMatch[0]
-
   // Phone numbers
   const phoneMatches = fullText.match(/(?:\+45\s?)?(?:\d{2}\s?){4}/g)
   if (phoneMatches) {
-    if (phoneMatches[0]) result.telefon = phoneMatches[0].trim()
-    if (phoneMatches[1]) result.mobil = phoneMatches[1].trim()
+    if (phoneMatches[0]) result.telefonnummer = phoneMatches[0].trim()
+    if (phoneMatches[1]) result.mobiltelefon = phoneMatches[1].trim()
   }
 
-  // CVR
-  const cvrMatch = fullText.match(/(?:CVR|cvr|DK)[:\s-]*(\d{8})/i)
-  if (cvrMatch) result.cvr_nummer = cvrMatch[1]
+  // Kundenummer
+  const kundeMatch = fullText.match(/(?:kunde(?:nummer|nr)?|kd\.?\s*nr)[:\s]*(\d+)/i)
+  if (kundeMatch) result.kundenummer = kundeMatch[1]
 
   // Postnummer + By (Danish zip codes are 4 digits)
   const zipMatch = fullText.match(/\b(\d{4})\s+([A-ZÆØÅa-zæøå]+(?:\s[A-ZÆØÅa-zæøå]+)?)\b/)
@@ -37,32 +33,32 @@ export function parseScannedText(text: string): Record<string, string> {
   // Website / Company hints
   const webMatch = fullText.match(/(?:www\.[\w.-]+\.\w{2,}|[\w-]+\.dk)/i)
 
-  // Try to detect company name (usually first line or line before address)
+  // Try to detect company/firma name (usually first line or line before address)
   if (lines.length > 0) {
     for (const line of lines) {
       if (line.match(/[@\d]{4,}/) || line.match(/(?:tlf|tel|mob|fax|mail|www)/i)) continue
       if (line.length > 2 && line.length < 60) {
-        result.firma_navn = line
+        result.firma = line
         break
       }
     }
   }
 
-  // Try to detect contact person (line that looks like a name)
+  // Try to detect name (line that looks like a person name)
   const namePattern = /^[A-ZÆØÅ][a-zæøå]+\s[A-ZÆØÅ][a-zæøå]+$/
   for (const line of lines) {
-    if (line !== result.firma_navn && namePattern.test(line)) {
-      result.kontaktperson = line
+    if (line !== result.firma && namePattern.test(line)) {
+      result.navn = line
       break
     }
   }
 
-  // Address (line containing a number followed by text, typical Danish addresses)
+  // Address
   const addrMatch = lines.find(l =>
     /\b\d+[A-Za-z]?\b/.test(l) &&
     !/[@]/.test(l) &&
     !/(?:CVR|tlf|tel|mob|fax)/i.test(l) &&
-    l !== result.firma_namn &&
+    l !== result.firma &&
     l.length > 5
   )
   if (addrMatch) {
@@ -71,10 +67,10 @@ export function parseScannedText(text: string): Record<string, string> {
       .trim()
   }
 
-  // If we found a web domain, use it as a hint for company name
-  if (!result.firma_navn && webMatch) {
+  // If we found a web domain, use it as a hint for firma
+  if (!result.firma && webMatch) {
     const domain = webMatch[0].replace(/^www\./, '').replace(/\.dk$/, '')
-    result.firma_navn = domain.charAt(0).toUpperCase() + domain.slice(1)
+    result.firma = domain.charAt(0).toUpperCase() + domain.slice(1)
   }
 
   return result

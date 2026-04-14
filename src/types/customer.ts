@@ -1,19 +1,44 @@
 export interface Customer {
   id: string
-  firma_navn: string
-  cvr_nummer: string
+  // Kundeoplysninger
+  kundenummer: string
+  firma: string
+  navn: string
   adresse: string
   postnummer: string
   by_navn: string
-  land: string
-  kontaktperson: string
-  titel: string
-  telefon: string
-  mobil: string
-  email: string
-  betalingsbetingelser: string
-  kredit_limit: number
+  telefonnummer: string
+  telefonnummer2: string
+  fax: string
+  mobiltelefon: string
+  mobiltelefon2: string
   noter: string
+  // Flow
+  ordrenr: string
+  emne: string
+  flow_id: string
+  foererhus: string
+  skaerme: string
+  kofanger: string
+  solskaerm: string
+  stige: string
+  tagbagage: string
+  luftfilter: string
+  spoiler: string
+  striber_dek: string
+  skrifttype: string
+  undervogn: string
+  hjul: string
+  kant_paa_hjul: string
+  vaerktoejsks: string
+  tank: string
+  kran: string
+  lift: string
+  lad_opbyg: string
+  fjelder: string
+  kasse: string
+  folienr: string
+  bemaerkninger: string
   created_at: string
   updated_at: string
 }
@@ -27,18 +52,41 @@ export interface CustomerImage {
 }
 
 export const emptyCustomer: Omit<Customer, 'id' | 'created_at' | 'updated_at'> = {
-  firma_navn: '',
-  cvr_nummer: '',
+  kundenummer: '',
+  firma: '',
+  navn: '',
   adresse: '',
   postnummer: '',
   by_navn: '',
-  land: 'Danmark',
-  kontaktperson: '',
-  titel: '',
-  telefon: '',
-  mobil: '',
-  email: '',
-  betalingsbetingelser: '',
-  kredit_limit: 0,
+  telefonnummer: '',
+  telefonnummer2: '',
+  fax: '',
+  mobiltelefon: '',
+  mobiltelefon2: '',
   noter: '',
+  ordrenr: '',
+  emne: '',
+  flow_id: '',
+  foererhus: '',
+  skaerme: '',
+  kofanger: '',
+  solskaerm: '',
+  stige: '',
+  tagbagage: '',
+  luftfilter: '',
+  spoiler: '',
+  striber_dek: '',
+  skrifttype: '',
+  undervogn: '',
+  hjul: '',
+  kant_paa_hjul: '',
+  vaerktoejsks: '',
+  tank: '',
+  kran: '',
+  lift: '',
+  lad_opbyg: '',
+  fjelder: '',
+  kasse: '',
+  folienr: '',
+  bemaerkninger: '',
 }

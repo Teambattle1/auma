@@ -13,14 +13,15 @@ export default function CustomerSearch({ customers, onSelect }: Props) {
     if (!query.trim()) return []
     const q = query.toLowerCase()
     return customers.filter(c =>
-      c.firma_navn.toLowerCase().includes(q) ||
-      c.kontaktperson.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.telefon.includes(q) ||
-      c.mobil.includes(q) ||
-      c.cvr_nummer.includes(q) ||
+      c.firma.toLowerCase().includes(q) ||
+      c.navn.toLowerCase().includes(q) ||
+      c.kundenummer.includes(q) ||
+      c.telefonnummer.includes(q) ||
+      c.mobiltelefon.includes(q) ||
       c.adresse.toLowerCase().includes(q) ||
-      c.by_navn.toLowerCase().includes(q)
+      c.by_navn.toLowerCase().includes(q) ||
+      c.ordrenr.includes(q) ||
+      c.emne.toLowerCase().includes(q)
     ).slice(0, 20)
   }, [query, customers])
 
@@ -30,11 +31,10 @@ export default function CustomerSearch({ customers, onSelect }: Props) {
         type="text"
         value={query}
         onChange={e => setQuery(e.target.value)}
-        placeholder="Søg på firmanavn, kontaktperson, email, telefon, CVR..."
+        placeholder="Søg på firma, navn, kundenummer, telefon, adresse, ordrenr..."
         className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         autoFocus
       />
-
       {query.trim() && (
         <div className="mt-3">
           {results.length === 0 ? (
@@ -50,9 +50,9 @@ export default function CustomerSearch({ customers, onSelect }: Props) {
                   }`}
                 >
                   <div>
-                    <div className="font-medium text-gray-800">{c.firma_navn}</div>
+                    <div className="font-medium text-gray-800">{c.firma || c.navn}</div>
                     <div className="text-xs text-gray-500">
-                      {[c.kontaktperson, c.email, c.telefon].filter(Boolean).join(' · ')}
+                      {[c.kundenummer && `#${c.kundenummer}`, c.navn, c.telefonnummer].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   <div className="text-xs text-gray-400">{c.by_navn}</div>

@@ -8,7 +8,6 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
   const contentWidth = pageWidth - margin * 2
   let y = margin
 
-  // Helper functions
   const addTitle = (text: string) => {
     doc.setFontSize(18)
     doc.setFont('helvetica', 'bold')
@@ -18,7 +17,7 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
 
   const addSection = (title: string) => {
     y += 4
-    doc.setDrawColor(37, 99, 235) // blue-600
+    doc.setDrawColor(37, 99, 235)
     doc.setLineWidth(0.5)
     doc.line(margin, y, margin + contentWidth, y)
     y += 6
@@ -30,52 +29,84 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
     y += 6
   }
 
+  const addRedSection = (title: string) => {
+    y += 4
+    doc.setDrawColor(220, 38, 38)
+    doc.setLineWidth(0.5)
+    doc.line(margin, y, margin + contentWidth, y)
+    y += 6
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(220, 38, 38)
+    doc.text(title, margin, y)
+    doc.setTextColor(0, 0, 0)
+    y += 6
+  }
+
   const addField = (label: string, value: string | number, inline = false) => {
     if (!value && value !== 0) return
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(100, 100, 100)
-    doc.text(label + ':', inline ? margin + contentWidth / 2 : margin, y)
+    const xStart = inline ? margin + contentWidth / 2 : margin
+    doc.text(label + ':', xStart, y)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(0, 0, 0)
     const labelWidth = doc.getTextWidth(label + ': ')
-    doc.text(
-      String(value),
-      (inline ? margin + contentWidth / 2 : margin) + labelWidth + 1,
-      y
-    )
+    doc.text(String(value), xStart + labelWidth + 1, y)
     if (!inline) y += 5
   }
 
-  const addFieldRow = (label1: string, val1: string | number, label2: string, val2: string | number) => {
-    addField(label1, val1)
-    if (val2) {
-      y -= 5
-      addField(label2, val2, true)
-    }
-    y += 0
+  const addFieldRow = (l1: string, v1: string, l2: string, v2: string) => {
+    addField(l1, v1)
+    if (v2) { y -= 5; addField(l2, v2, true) }
   }
 
   // Title
   addTitle('AUMA Kundekartotek')
   y += 2
 
-  // Firmadata
-  addSection('FIRMADATA')
-  addFieldRow('Firmanavn', customer.firma_navn, 'CVR', customer.cvr_nummer)
-  addField('Adresse', customer.adresse)
-  addFieldRow('Postnummer', customer.postnummer, 'By', customer.by_navn)
-  addField('Land', customer.land)
+  // Kundeoplysninger
+  addSection('KUNDEOPLYSNINGER')
+  addFieldRow('Kundenummer', customer.kundenummer, 'Telefonnummer', customer.telefonnummer)
+  addFieldRow('Firma', customer.firma, 'Telefonnummer 2', customer.telefonnummer2)
+  addFieldRow('Navn', customer.navn, 'Fax', customer.fax)
+  addFieldRow('Adresse', customer.adresse, 'Mobiltelefon', customer.mobiltelefon)
+  addFieldRow('Postnr / By', `${customer.postnummer} ${customer.by_navn}`.trim(), 'Mobiltelefon 2', customer.mobiltelefon2)
 
-  // Kontaktperson
-  addSection('KONTAKTPERSON')
-  addFieldRow('Kontaktperson', customer.kontaktperson, 'Titel', customer.titel)
-  addFieldRow('Telefon', customer.telefon, 'Mobil', customer.mobil)
-  addField('Email', customer.email)
+  // Flow
+  const hasFlow = customer.ordrenr || customer.emne || customer.foererhus || customer.undervogn
+  if (hasFlow) {
+    addRedSection('FLOW')
+    addFieldRow('Ordrenr', customer.ordrenr, 'ID', customer.flow_id)
+    addField('Emne', customer.emne)
+    y += 2
+    addFieldRow('Førerhus', customer.foererhus, 'Undervogn', customer.undervogn)
+    addFieldRow('Skærme', customer.skaerme, 'Hjul', customer.hjul)
+    addFieldRow('Kofanger', customer.kofanger, 'Kant på hjul', customer.kant_paa_hjul)
+    addFieldRow('Solskærm', customer.solskaerm, 'Værktøjsks.', customer.vaerktoejsks)
+    addFieldRow('Stige', customer.stige, 'Tank', customer.tank)
+    addFieldRow('Tagbagage', customer.tagbagage, 'Kran', customer.kran)
+    addFieldRow('Luftfilter', customer.luftfilter, 'Lift', customer.lift)
+    addFieldRow('Spoiler', customer.spoiler, 'Lad opbyg', customer.lad_opbyg)
+    addFieldRow('Striber/dek', customer.striber_dek, 'Fjelder', customer.fjelder)
+    addFieldRow('Skrifttype', customer.skrifttype, 'Kasse', customer.kasse)
+    addField('Folienr.', customer.folienr)
 
-  // Økonomi
-  addSection('ØKONOMI')
-  addFieldRow('Betalingsbetingelser', customer.betalingsbetingelser, 'Kredit limit', customer.kredit_limit ? `${customer.kredit_limit} DKK` : '')
+    if (customer.bemaerkninger) {
+      y += 2
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 100, 100)
+      doc.text('Bemærkninger:', margin, y)
+      y += 4
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(0, 0, 0)
+      const lines = doc.splitTextToSize(customer.bemaerkninger, contentWidth)
+      doc.text(lines, margin, y)
+      y += lines.length * 4
+    }
+  }
 
   // Noter
   if (customer.noter) {
@@ -87,11 +118,10 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
     y += noteLines.length * 4
   }
 
-  // Images
+  // Billeder
   if (images.length > 0) {
-    addSection('BILLEDER')
+    addSection('KUNDEBILLEDER')
     y += 2
-
     const imgSize = 40
     const gap = 5
     const cols = Math.floor(contentWidth / (imgSize + gap))
@@ -99,12 +129,7 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
 
     for (const img of images) {
       try {
-        // Check if we need a new page
-        if (y + imgSize > 280) {
-          doc.addPage()
-          y = margin
-        }
-
+        if (y + imgSize > 280) { doc.addPage(); y = margin }
         const response = await fetch(img.image_url)
         const blob = await response.blob()
         const dataUrl = await new Promise<string>((resolve) => {
@@ -112,18 +137,11 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
           reader.onload = () => resolve(reader.result as string)
           reader.readAsDataURL(blob)
         })
-
         const x = margin + col * (imgSize + gap)
         doc.addImage(dataUrl, 'JPEG', x, y, imgSize, imgSize)
-
         col++
-        if (col >= cols) {
-          col = 0
-          y += imgSize + gap
-        }
-      } catch {
-        // Skip images that fail to load
-      }
+        if (col >= cols) { col = 0; y += imgSize + gap }
+      } catch { /* skip */ }
     }
   }
 
@@ -131,11 +149,7 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
   const now = new Date()
   doc.setFontSize(7)
   doc.setTextColor(150, 150, 150)
-  doc.text(
-    `Udskrevet: ${now.toLocaleDateString('da-DK')} ${now.toLocaleTimeString('da-DK')}`,
-    margin,
-    290
-  )
+  doc.text(`Udskrevet: ${now.toLocaleDateString('da-DK')} ${now.toLocaleTimeString('da-DK')}`, margin, 290)
 
-  doc.save(`kunde-${customer.firma_navn.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+  doc.save(`kunde-${(customer.firma || customer.navn || 'kunde').replace(/\s+/g, '-').toLowerCase()}.pdf`)
 }

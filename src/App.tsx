@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './lib/supabase'
 import { Customer, CustomerImage, emptyCustomer } from './types/customer'
 import CustomerForm from './components/CustomerForm'
+import FlowForm from './components/FlowForm'
 import ImageUpload from './components/ImageUpload'
 import ImageScanner from './components/ImageScanner'
 import CustomerSearch from './components/CustomerSearch'
@@ -9,10 +10,12 @@ import { generatePDF } from './components/CustomerPrint'
 import AumaFlowIntro from './components/AumaFlowIntro'
 
 type View = 'home' | 'create' | 'edit' | 'search' | 'scan'
+type Tab = 'kunde' | 'flow' | 'billeder'
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true)
   const [view, setView] = useState<View>('home')
+  const [activeTab, setActiveTab] = useState<Tab>('kunde')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [customerImages, setCustomerImages] = useState<CustomerImage[]>([])
@@ -24,7 +27,7 @@ export default function App() {
     const { data } = await supabase
       .from('customers')
       .select('*')
-      .order('firma_navn', { ascending: true })
+      .order('firma', { ascending: true })
     if (data) setCustomers(data)
   }, [])
 
@@ -56,22 +59,8 @@ export default function App() {
 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer)
-    setFormData({
-      firma_navn: customer.firma_navn,
-      cvr_nummer: customer.cvr_nummer,
-      adresse: customer.adresse,
-      postnummer: customer.postnummer,
-      by_navn: customer.by_navn,
-      land: customer.land,
-      kontaktperson: customer.kontaktperson,
-      titel: customer.titel,
-      telefon: customer.telefon,
-      mobil: customer.mobil,
-      email: customer.email,
-      betalingsbetingelser: customer.betalingsbetingelser,
-      kredit_limit: customer.kredit_limit,
-      noter: customer.noter,
-    })
+    const { id, created_at, updated_at, ...rest } = customer
+    setFormData(rest)
     setView('edit')
   }
 
@@ -83,12 +72,13 @@ export default function App() {
   const handleCreate = () => {
     setSelectedCustomer(null)
     setFormData({ ...emptyCustomer })
+    setActiveTab('kunde')
     setView('create')
   }
 
   const handleSave = async () => {
-    if (!formData.firma_navn.trim()) {
-      showMessage('Firmanavn er påkrævet')
+    if (!formData.firma.trim() && !formData.navn.trim()) {
+      showMessage('Firma eller Navn er påkrævet')
       return
     }
     setSaving(true)
@@ -169,12 +159,16 @@ export default function App() {
     if (selectedCustomer) loadImages(selectedCustomer.id)
   }
 
+  const tabs: { key: Tab; label: string; color: string }[] = [
+    { key: 'kunde', label: 'Kundeoplysninger', color: 'blue' },
+    { key: 'flow', label: 'Flow', color: 'red' },
+    { key: 'billeder', label: `Kundebilleder (${customerImages.length})`, color: 'green' },
+  ]
+
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* AUMA FLOW Intro Animation */}
       {showIntro && <AumaFlowIntro onComplete={() => setShowIntro(false)} />}
 
-      {/* Header */}
       <header className="bg-white shadow-sm border-b-2 border-red-600">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-gray-800">AUMA Kundekartotek</h1>
@@ -182,7 +176,6 @@ export default function App() {
         </div>
       </header>
 
-      {/* Message toast */}
       {message && (
         <div className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg animate-pulse">
           {message}
@@ -190,10 +183,9 @@ export default function App() {
       )}
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {/* Action buttons + Dropdown */}
+        {/* Action bar */}
         <div className="bg-white rounded-lg shadow-sm p-4 mb-6 no-print">
           <div className="flex flex-wrap items-center gap-3">
-            {/* Customer dropdown */}
             <select
               className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={selectedCustomer?.id || ''}
@@ -202,60 +194,42 @@ export default function App() {
               <option value="">-- Vælg kunde ({customers.length}) --</option>
               {customers.map(c => (
                 <option key={c.id} value={c.id}>
-                  {c.firma_navn} {c.kontaktperson ? `(${c.kontaktperson})` : ''}
+                  {c.firma || c.navn} {c.firma && c.navn ? `(${c.navn})` : ''} {c.kundenummer ? `[${c.kundenummer}]` : ''}
                 </option>
               ))}
             </select>
 
-            {/* 4 main buttons */}
-            <button
-              onClick={handleCreate}
-              className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2"
-            >
+            <button onClick={handleCreate} className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               Opret Ny
             </button>
-            <button
-              onClick={() => setView('search')}
-              className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
+            <button onClick={() => setView('search')} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               Find
             </button>
-            <button
-              onClick={() => setView('scan')}
-              className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center gap-2"
-            >
+            <button onClick={() => setView('scan')} className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               Scan
             </button>
-            <button
-              onClick={handlePrint}
-              className="px-5 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors flex items-center gap-2"
-            >
+            <button onClick={handlePrint} className="px-5 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
               Print
             </button>
           </div>
         </div>
 
-        {/* Search view */}
+        {/* Search */}
         {view === 'search' && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Søg kunde</h2>
               <button onClick={() => setView('home')} className="text-gray-500 hover:text-gray-700 text-sm">Luk</button>
             </div>
-            <CustomerSearch
-              customers={customers}
-              onSelect={(c) => {
-                handleSelectCustomer(c)
-              }}
-            />
+            <CustomerSearch customers={customers} onSelect={handleSelectCustomer} />
           </div>
         )}
 
-        {/* Scan view */}
+        {/* Scan */}
         {view === 'scan' && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
@@ -266,35 +240,76 @@ export default function App() {
           </div>
         )}
 
-        {/* Customer form (create or edit) */}
+        {/* Customer form with tabs */}
         {(view === 'create' || view === 'edit') && (
           <div id="customer-card">
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-              <div className="flex items-center justify-between mb-2">
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+              {/* Header */}
+              <div className="px-6 pt-5 pb-0 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-800">
-                  {view === 'create' ? 'Opret ny kunde' : `Rediger: ${selectedCustomer?.firma_navn}`}
+                  {view === 'create' ? 'Opret ny kunde' : `${selectedCustomer?.firma || selectedCustomer?.navn || 'Kunde'}`}
                 </h2>
                 <div className="flex gap-2 no-print">
                   {view === 'edit' && (
-                    <button
-                      onClick={handleDelete}
-                      className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                    >
-                      Slet kunde
+                    <button onClick={handleDelete} className="px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors">
+                      Slet
                     </button>
                   )}
-                  <button
-                    onClick={() => { setView('home'); setSelectedCustomer(null); }}
-                    className="text-gray-500 hover:text-gray-700 text-sm"
-                  >
+                  <button onClick={() => { setView('home'); setSelectedCustomer(null) }} className="text-gray-500 hover:text-gray-700 text-sm">
                     Luk
                   </button>
                 </div>
               </div>
 
-              <CustomerForm formData={formData} setFormData={setFormData} />
+              {/* Tabs */}
+              <div className="px-6 mt-4 border-b border-gray-200 no-print">
+                <div className="flex gap-0">
+                  {tabs.map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key)}
+                      className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                        activeTab === tab.key
+                          ? tab.color === 'blue'
+                            ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                            : tab.color === 'red'
+                            ? 'border-red-600 text-red-700 bg-red-50/50'
+                            : 'border-green-600 text-green-700 bg-green-50/50'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-              <div className="mt-6 flex gap-3 no-print">
+              {/* Tab content */}
+              <div className="p-6">
+                {activeTab === 'kunde' && (
+                  <CustomerForm formData={formData} setFormData={setFormData} />
+                )}
+
+                {activeTab === 'flow' && (
+                  <FlowForm formData={formData} setFormData={setFormData} />
+                )}
+
+                {activeTab === 'billeder' && view === 'edit' && selectedCustomer && (
+                  <ImageUpload
+                    customerId={selectedCustomer.id}
+                    images={customerImages}
+                    onImageUploaded={handleImageUploaded}
+                    onImageDelete={handleImageDelete}
+                  />
+                )}
+
+                {activeTab === 'billeder' && view === 'create' && (
+                  <p className="text-sm text-gray-400 text-center py-8">Gem kunden først for at uploade billeder</p>
+                )}
+              </div>
+
+              {/* Save bar */}
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex gap-3 no-print">
                 <button
                   onClick={handleSave}
                   disabled={saving}
@@ -302,33 +317,12 @@ export default function App() {
                 >
                   {saving ? 'Gemmer...' : (view === 'create' ? 'Opret kunde' : 'Gem ændringer')}
                 </button>
-                <button
-                  onClick={() => setView('scan')}
-                  className="px-4 py-2.5 bg-purple-100 text-purple-700 rounded-lg font-medium hover:bg-purple-200 transition-colors"
-                >
-                  Scan og udfyld
-                </button>
               </div>
             </div>
-
-            {/* Image section - only for existing customers */}
-            {view === 'edit' && selectedCustomer && (
-              <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Billeder</h2>
-                <div className="border-t-2 border-blue-600 pt-4">
-                  <ImageUpload
-                    customerId={selectedCustomer.id}
-                    images={customerImages}
-                    onImageUploaded={handleImageUploaded}
-                    onImageDelete={handleImageDelete}
-                  />
-                </div>
-              </div>
-            )}
           </div>
         )}
 
-        {/* Home / empty state */}
+        {/* Home */}
         {view === 'home' && (
           <div className="bg-white rounded-lg shadow-sm p-12 text-center">
             <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
