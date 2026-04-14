@@ -154,11 +154,8 @@ export default function CustomerForm({ formData, setFormData }: Props) {
 
         {/* Right column - Telefon */}
         <div className="space-y-3">
-          <Field label="Telefonnummer" value={formData.telefonnummer} onChange={set('telefonnummer')} type="tel" />
-          <Field label="Telefonnummer 2" value={formData.telefonnummer2} onChange={set('telefonnummer2')} type="tel" />
-          <Field label="Fax" value={formData.fax} onChange={set('fax')} type="tel" />
-          <Field label="Mobiltelefon" value={formData.mobiltelefon} onChange={set('mobiltelefon')} type="tel" />
-          <Field label="Mobiltelefon 2" value={formData.mobiltelefon2} onChange={set('mobiltelefon2')} type="tel" />
+          <Field label="Telefon" value={formData.telefon} onChange={set('telefon')} type="tel" />
+          <Field label="Mobil" value={formData.mobil} onChange={set('mobil')} type="tel" />
         </div>
       </div>
 

@@ -5,6 +5,9 @@ import * as pdfjsLib from 'pdfjs-dist'
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
 
 // All known labels mapped to field names. Order matters for matching priority.
+// Words that look like labels but should be ignored during parsing
+const IGNORE_WORDS = /kundebilleder|kundebilled/i
+
 const LABEL_DEFS: [string, string][] = [
   // Kundeoplysninger
   ['Kundenummer', 'kundenummer'],
@@ -15,12 +18,13 @@ const LABEL_DEFS: [string, string][] = [
   ['Postnummer', 'postnummer'],
   ['Postnr', 'postnummer'],
   ['By', 'by_navn'],
-  ['Telefonnummer', 'telefonnummer'],
-  ['Telefonnr', 'telefonnummer'],
-  ['Tlf', 'telefonnummer'],
-  ['Fax', 'fax'],
-  ['Mobiltelefon', 'mobiltelefon'],
-  ['Mobilnr', 'mobiltelefon'],
+  ['Telefonnummer', 'telefon'],
+  ['Telefonnr', 'telefon'],
+  ['Telefon', 'telefon'],
+  ['Tlf', 'telefon'],
+  ['Mobiltelefon', 'mobil'],
+  ['Mobilnr', 'mobil'],
+  ['Mobil', 'mobil'],
   // Flow
   ['Ordrenr', 'ordrenr'],
   ['Emne', 'emne'],
@@ -72,12 +76,42 @@ export function parseScannedText(text: string): Record<string, string> {
     labelToField.set(label.toLowerCase(), field)
   }
 
-  // Process all lines, finding ALL labels per line and extracting the value
-  // between the current label's end and the next label's start.
+  // Step 1: Find Bemærkninger section first, so we can exclude those lines from label parsing
+  const bemIdx = lines.findIndex(l => /bem(?:æ|ae?)rkninger\s*[:.]?\s*/i.test(l))
+  const bemLineIndices = new Set<number>()
   let foundLabels = false
+
+  if (bemIdx >= 0) {
+    const firstLine = lines[bemIdx].replace(/.*?bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, '').trim()
+    const bemLines = firstLine ? [firstLine] : []
+    bemLineIndices.add(bemIdx)
+    for (let i = bemIdx + 1; i < lines.length; i++) {
+      // Stop if this line starts with a known label (but not inside bemærkninger content)
+      multiLabelRe.lastIndex = 0
+      const hasLabel = multiLabelRe.test(lines[i])
+      // Only break if the label is at the START of the line (not just a word in the middle)
+      multiLabelRe.lastIndex = 0
+      const startsWithLabel = hasLabel && multiLabelRe.exec(lines[i])?.index === 0
+      multiLabelRe.lastIndex = 0
+      if (startsWithLabel && !/bem(?:æ|ae?)rkninger/i.test(lines[i])) break
+      bemLines.push(lines[i])
+      bemLineIndices.add(i)
+    }
+    if (bemLines.length > 0) {
+      result.bemaerkninger = bemLines.join('\n')
+      foundLabels = true
+    }
+  }
+
+  // Step 2: Process all lines EXCEPT bemærkninger content lines
   const dupCount: Record<string, number> = {}
 
-  for (const line of lines) {
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    // Skip lines that are part of Bemærkninger content (not the label line itself)
+    if (bemLineIndices.has(lineIdx) && lineIdx !== bemIdx) continue
+
+    const line = lines[lineIdx]
+
     // Find all label matches in this line with their positions
     const matches: { label: string; field: string; start: number; end: number }[] = []
     multiLabelRe.lastIndex = 0
@@ -100,37 +134,34 @@ export function parseScannedText(text: string): Record<string, string> {
     // Extract value for each label: from label end to next label start (or end of line)
     for (let i = 0; i < matches.length; i++) {
       const valueEnd = i + 1 < matches.length ? matches[i + 1].start : line.length
-      const value = line.slice(matches[i].end, valueEnd).trim()
+      let value = line.slice(matches[i].end, valueEnd).trim()
 
-      if (!value || value === '-' || value === ':') continue
+      // Remove leading colons/dots
+      value = value.replace(/^[:.;]+\s*/, '')
+      // Remove ignored words (e.g. "Kundebilleder")
+      value = value.replace(IGNORE_WORDS, '').trim()
+
+      if (!value || value === '-') continue
 
       const field = matches[i].field
 
-      // Handle duplicate fields (telefonnummer x2, mobiltelefon x2)
+      // Clean numeric-only fields
+      if (field === 'kundenummer') {
+        value = value.replace(/\D.*$/, '').trim() // only leading digits
+      }
+      if (field === 'postnummer') {
+        const digits = value.match(/\d{4}/)
+        value = digits ? digits[0] : value.replace(/\D/g, '').slice(0, 4)
+      }
+
+      // Skip duplicate telefon/mobil
       dupCount[field] = (dupCount[field] || 0) + 1
-      if (field === 'telefonnummer' && dupCount[field] > 1) {
-        result.telefonnummer2 = value
-      } else if (field === 'mobiltelefon' && dupCount[field] > 1) {
-        result.mobiltelefon2 = value
-      } else {
+      if ((field === 'telefon' || field === 'mobil') && dupCount[field] > 1) {
+        // skip
+      } else if (field !== 'bemaerkninger') {
+        // Don't overwrite bemærkninger from label parsing (already collected above)
         result[field] = value
       }
-      foundLabels = true
-    }
-  }
-
-  // Bemærkninger: collect multiple lines after the label
-  const bemIdx = lines.findIndex(l => /bem(?:æ|ae?)rkninger\s*[:.]?\s*/i.test(l))
-  if (bemIdx >= 0) {
-    const firstLine = lines[bemIdx].replace(/.*?bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, '').trim()
-    const bemLines = firstLine ? [firstLine] : []
-    for (let i = bemIdx + 1; i < lines.length; i++) {
-      multiLabelRe.lastIndex = 0
-      if (multiLabelRe.test(lines[i]) && !/bem(?:æ|ae?)rkninger/i.test(lines[i])) break
-      bemLines.push(lines[i])
-    }
-    if (bemLines.length > 0) {
-      result.bemaerkninger = bemLines.join('\n')
       foundLabels = true
     }
   }
@@ -143,8 +174,8 @@ export function parseScannedText(text: string): Record<string, string> {
   // Phone numbers
   const phoneMatches = fullText.match(/(?:\+45\s?)?(?:\d{2}\s?){4}/g)
   if (phoneMatches) {
-    if (phoneMatches[0]) result.telefonnummer = phoneMatches[0].trim()
-    if (phoneMatches[1]) result.mobiltelefon = phoneMatches[1].trim()
+    if (phoneMatches[0]) result.telefon = phoneMatches[0].trim()
+    if (phoneMatches[1]) result.mobil = phoneMatches[1].trim()
   }
 
   // Kundenummer

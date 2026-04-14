@@ -7,11 +7,8 @@ export interface Customer {
   adresse: string
   postnummer: string
   by_navn: string
-  telefonnummer: string
-  telefonnummer2: string
-  fax: string
-  mobiltelefon: string
-  mobiltelefon2: string
+  telefon: string
+  mobil: string
   noter: string
   // Flow
   ordrenr: string
@@ -66,11 +63,8 @@ export const emptyCustomer: Omit<Customer, 'id' | 'created_at' | 'updated_at'> =
   adresse: '',
   postnummer: '',
   by_navn: '',
-  telefonnummer: '',
-  telefonnummer2: '',
-  fax: '',
-  mobiltelefon: '',
-  mobiltelefon2: '',
+  telefon: '',
+  mobil: '',
   noter: '',
   ordrenr: '',
   emne: '',

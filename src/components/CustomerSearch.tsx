@@ -26,8 +26,8 @@ export default function CustomerSearch({ customers, onSelect, mobile }: Props) {
       c.firma.toLowerCase().includes(q) ||
       c.navn.toLowerCase().includes(q) ||
       c.kundenummer.includes(q) ||
-      c.telefonnummer.includes(q) ||
-      c.mobiltelefon.includes(q) ||
+      c.telefon.includes(q) ||
+      c.mobil.includes(q) ||
       c.adresse.toLowerCase().includes(q) ||
       c.by_navn.toLowerCase().includes(q) ||
       c.ordrenr.includes(q) ||
@@ -101,7 +101,7 @@ export default function CustomerSearch({ customers, onSelect, mobile }: Props) {
                   {[
                     c.kundenummer && `#${c.kundenummer}`,
                     c.firma && c.navn ? c.navn : null,
-                    c.telefonnummer,
+                    c.telefon,
                   ].filter(Boolean).join(' · ')}
                 </div>
               </div>

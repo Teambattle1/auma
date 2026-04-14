@@ -8,11 +8,8 @@ const FIELD_LABELS: Record<string, string> = {
   adresse: 'Adresse',
   postnummer: 'Postnummer',
   by_navn: 'By',
-  telefonnummer: 'Telefonnummer',
-  telefonnummer2: 'Telefonnummer 2',
-  fax: 'Fax',
-  mobiltelefon: 'Mobiltelefon',
-  mobiltelefon2: 'Mobiltelefon 2',
+  telefon: 'Telefon',
+  mobil: 'Mobil',
   noter: 'Noter',
   // Flow
   ordrenr: 'Ordrenr',

@@ -68,11 +68,11 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
 
   // Kundeoplysninger
   addSection('KUNDEOPLYSNINGER')
-  addFieldRow('Kundenummer', customer.kundenummer, 'Telefonnummer', customer.telefonnummer)
-  addFieldRow('Firma', customer.firma, 'Telefonnummer 2', customer.telefonnummer2)
-  addFieldRow('Navn', customer.navn, 'Fax', customer.fax)
-  addFieldRow('Adresse', customer.adresse, 'Mobiltelefon', customer.mobiltelefon)
-  addFieldRow('Postnr / By', `${customer.postnummer} ${customer.by_navn}`.trim(), 'Mobiltelefon 2', customer.mobiltelefon2)
+  addFieldRow('Kundenummer', customer.kundenummer, 'Telefon', customer.telefon)
+  addFieldRow('Firma', customer.firma, 'Mobil', customer.mobil)
+  addField('Navn', customer.navn)
+  addField('Adresse', customer.adresse)
+  addField('Postnr / By', `${customer.postnummer} ${customer.by_navn}`.trim())
 
   // Flow
   const hasFlow = customer.ordrenr || customer.emne || customer.foererhus || customer.undervogn
