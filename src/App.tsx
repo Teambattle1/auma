@@ -6,10 +6,12 @@ import ImageUpload from './components/ImageUpload'
 import ImageScanner from './components/ImageScanner'
 import CustomerSearch from './components/CustomerSearch'
 import { generatePDF } from './components/CustomerPrint'
+import AumaFlowIntro from './components/AumaFlowIntro'
 
 type View = 'home' | 'create' | 'edit' | 'search' | 'scan'
 
 export default function App() {
+  const [showIntro, setShowIntro] = useState(true)
   const [view, setView] = useState<View>('home')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
@@ -169,8 +171,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* AUMA FLOW Intro Animation */}
+      {showIntro && <AumaFlowIntro onComplete={() => setShowIntro(false)} />}
+
       {/* Header */}
-      <header className="bg-white shadow-sm border-b-2 border-blue-600">
+      <header className="bg-white shadow-sm border-b-2 border-red-600">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-gray-800">AUMA Kundekartotek</h1>
           <p className="text-sm text-gray-500 mt-1">Kundedatabase med billeder og scanning</p>

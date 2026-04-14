@@ -13,3 +13,79 @@ body {
     display: none !important;
   }
 }
+
+/* AUMA FLOW Intro Animations */
+.auma-wave {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  transition: all 1.5s ease-out;
+}
+
+.auma-wave-1 {
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(255,255,255,0.03) 60%, transparent 70%);
+}
+
+.auma-wave-2 {
+  width: 150%;
+  height: 150%;
+  top: -25%;
+  left: -25%;
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(255,255,255,0.05) 50%, transparent 65%);
+}
+
+.auma-wave-3 {
+  width: 180%;
+  height: 180%;
+  top: -40%;
+  left: -40%;
+  background: radial-gradient(ellipse at center, transparent 45%, rgba(255,255,255,0.04) 55%, transparent 75%);
+}
+
+.auma-wave-active {
+  opacity: 1;
+  animation: waveRotate 6s linear infinite;
+}
+
+.auma-wave-2.auma-wave-active {
+  animation-duration: 8s;
+  animation-direction: reverse;
+}
+
+.auma-wave-3.auma-wave-active {
+  animation-duration: 10s;
+}
+
+@keyframes waveRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.auma-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: white;
+  border-radius: 50%;
+  opacity: 0;
+  animation: particleFloat 2s ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0);
+  }
+  30% {
+    opacity: 0.8;
+    transform: translateY(-20px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-80px) scale(0.3);
+  }
+}
