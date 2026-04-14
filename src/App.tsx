@@ -11,6 +11,8 @@ import AumaFlowIntro from './components/AumaFlowIntro'
 import ScanPreview from './components/ScanPreview'
 
 type View = 'home' | 'create' | 'edit' | 'search' | 'scan'
+
+const isMobile = () => /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
 type Tab = 'kunde' | 'flow' | 'billeder'
 
 export default function App() {
@@ -258,48 +260,58 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Action bar */}
-        <div className="bg-white rounded-lg shadow-sm p-4 mb-6 no-print">
-          <div className="flex flex-wrap items-center gap-3">
-            <select
-              className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              value={selectedCustomer?.id || ''}
-              onChange={handleDropdownSelect}
-            >
-              <option value="">-- Vælg kunde ({customers.length}) --</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.firma || c.navn} {c.firma && c.navn ? `(${c.navn})` : ''} {c.kundenummer ? `[${c.kundenummer}]` : ''}
-                </option>
-              ))}
-            </select>
+        <div className="bg-white rounded-lg shadow-sm p-3 md:p-4 mb-4 md:mb-6 no-print">
+          {/* Search field - always visible, prominent */}
+          <div className="relative mb-3">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Søg kunde..."
+              className="w-full pl-10 pr-4 py-3 md:py-2.5 text-base md:text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={view === 'search' ? undefined : ''}
+              onFocus={() => setView('search')}
+              readOnly
+            />
+          </div>
 
-            <button onClick={handleCreate} className="px-5 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              Opret Ny
+          {/* Buttons row */}
+          <div className="grid grid-cols-4 gap-2 md:flex md:flex-wrap md:gap-3">
+            <button onClick={handleCreate} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-green-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-green-700 transition-colors text-xs md:text-sm">
+              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+              <span>Opret</span>
             </button>
-            <button onClick={() => setView('search')} className="px-5 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              Find
+            <button onClick={() => setView('search')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-blue-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-blue-700 transition-colors text-xs md:text-sm">
+              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              <span>Find</span>
             </button>
-            <button onClick={() => setView('scan')} className="px-5 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-              Scan
+            <button onClick={() => setView('scan')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-purple-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-purple-700 transition-colors text-xs md:text-sm">
+              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+              <span>Scan</span>
             </button>
-            <button onClick={handlePrint} className="px-5 py-2.5 bg-orange-600 text-white rounded-lg font-medium hover:bg-orange-700 transition-colors flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-              Print
+            <button onClick={handlePrint} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-orange-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-orange-700 transition-colors text-xs md:text-sm">
+              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+              <span>Print</span>
             </button>
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search - full screen on mobile */}
         {view === 'search' && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Søg kunde</h2>
-              <button onClick={() => setView('home')} className="text-gray-500 hover:text-gray-700 text-sm">Luk</button>
+          <div className="fixed inset-0 z-40 bg-white md:relative md:inset-auto md:z-auto md:bg-white md:rounded-lg md:shadow-sm md:mb-6">
+            <div className="flex flex-col h-full md:h-auto">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 md:border-0">
+                <button onClick={() => setView('home')} className="p-2 -ml-2 text-gray-500 hover:text-gray-700 md:hidden">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <h2 className="text-lg font-semibold text-gray-800 md:hidden">Søg kunde</h2>
+                <button onClick={() => setView('home')} className="hidden md:block text-gray-500 hover:text-gray-700 text-sm ml-auto">Luk</button>
+              </div>
+              <div className="flex-1 overflow-auto p-4 md:p-6">
+                <CustomerSearch customers={customers} onSelect={(c) => { handleSelectCustomer(c); }} mobile={isMobile()} />
+              </div>
             </div>
-            <CustomerSearch customers={customers} onSelect={handleSelectCustomer} />
           </div>
         )}
 
