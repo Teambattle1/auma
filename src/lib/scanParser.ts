@@ -4,83 +4,117 @@ import * as pdfjsLib from 'pdfjs-dist'
 // Set PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
 
+// All known labels mapped to field names. Order matters for matching priority.
+const LABEL_DEFS: [string, string][] = [
+  // Kundeoplysninger
+  ['Kundenummer', 'kundenummer'],
+  ['Kundenr', 'kundenummer'],
+  ['Firma', 'firma'],
+  ['Navn', 'navn'],
+  ['Adresse', 'adresse'],
+  ['Postnummer', 'postnummer'],
+  ['Postnr', 'postnummer'],
+  ['By', 'by_navn'],
+  ['Telefonnummer', 'telefonnummer'],
+  ['Telefonnr', 'telefonnummer'],
+  ['Tlf', 'telefonnummer'],
+  ['Fax', 'fax'],
+  ['Mobiltelefon', 'mobiltelefon'],
+  ['Mobilnr', 'mobiltelefon'],
+  // Flow
+  ['Ordrenr', 'ordrenr'],
+  ['Emne', 'emne'],
+  ['ID', 'flow_id'],
+  ['Førerhus', 'foererhus'],
+  ['Foererhus', 'foererhus'],
+  ['Skærme', 'skaerme'],
+  ['Skaerme', 'skaerme'],
+  ['Kofanger', 'kofanger'],
+  ['Solskærm', 'solskaerm'],
+  ['Solskaerm', 'solskaerm'],
+  ['Stige', 'stige'],
+  ['Tagbagage', 'tagbagage'],
+  ['Luftfilter', 'luftfilter'],
+  ['Spoiler', 'spoiler'],
+  ['Striber/dek', 'striber_dek'],
+  ['Striber', 'striber_dek'],
+  ['Skrifttype', 'skrifttype'],
+  ['Undervogn', 'undervogn'],
+  ['Kant på hjul', 'kant_paa_hjul'],
+  ['Kant paa hjul', 'kant_paa_hjul'],
+  ['Hjul', 'hjul'],
+  ['Værktøjsks', 'vaerktoejsks'],
+  ['Vaerktoejsks', 'vaerktoejsks'],
+  ['Tank', 'tank'],
+  ['Kran', 'kran'],
+  ['Lift', 'lift'],
+  ['Lad opbyg', 'lad_opbyg'],
+  ['Fjelder', 'fjelder'],
+  ['Kasse', 'kasse'],
+  ['Folienr', 'folienr'],
+  ['Bemærkninger', 'bemaerkninger'],
+  ['Bemaerkninger', 'bemaerkninger'],
+]
+
+// Build a master regex that finds ALL label positions in a string.
+// Sorted by length descending so longer labels match first (e.g. "Kant på hjul" before "Hjul").
+const sortedLabels = [...LABEL_DEFS].sort((a, b) => b[0].length - a[0].length)
+const labelAlt = sortedLabels.map(([l]) => l.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&')).join('|')
+const multiLabelRe = new RegExp(`(${labelAlt})\\s*[:.;]?\\s*`, 'gi')
+
 export function parseScannedText(text: string): Record<string, string> {
   const result: Record<string, string> = {}
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-  const fullText = lines.join(' ')
 
-  // --- Label-based parsing (structured documents like customer cards) ---
-  // Maps label patterns to our field names
-  const labelMap: [RegExp, string][] = [
-    // Kundeoplysninger
-    [/kunde(?:nummer|nr\.?)\s*[:.]?\s*/i, 'kundenummer'],
-    [/firma\s*[:.]?\s*/i, 'firma'],
-    [/^navn\s*[:.]?\s*/i, 'navn'],
-    [/adresse\s*[:.]?\s*/i, 'adresse'],
-    [/post(?:nummer|nr\.?)\s*[:.]?\s*/i, 'postnummer'],
-    [/(?:^|\s)by\s*[:.]?\s*/i, 'by_navn'],
-    [/telefonnummer\s*[:.]?\s*/i, 'telefonnummer'],
-    [/telefonnr\.?\s*[:.]?\s*/i, 'telefonnummer'],
-    [/tlf\.?\s*[:.]?\s*/i, 'telefonnummer'],
-    [/fax\s*[:.]?\s*/i, 'fax'],
-    [/mobil(?:telefon|nr\.?)?\s*[:.]?\s*/i, 'mobiltelefon'],
-    // Flow
-    [/ordrenr\.?\s*[:.]?\s*/i, 'ordrenr'],
-    [/emne\s*[:.]?\s*/i, 'emne'],
-    [/(?:^|\s)id\s*[:.]?\s*/i, 'flow_id'],
-    [/f(?:ø|oe?)rerhus\s*[:.]?\s*/i, 'foererhus'],
-    [/sk(?:æ|ae?)rme\s*[:.]?\s*/i, 'skaerme'],
-    [/kofanger\s*[:.]?\s*/i, 'kofanger'],
-    [/solsk(?:æ|ae?)rm\s*[:.]?\s*/i, 'solskaerm'],
-    [/stige\s*[:.]?\s*/i, 'stige'],
-    [/tagbagage\s*[:.]?\s*/i, 'tagbagage'],
-    [/luftfilter\s*[:.]?\s*/i, 'luftfilter'],
-    [/spoiler\s*[:.]?\s*/i, 'spoiler'],
-    [/striber\/?dek\.?\s*[:.]?\s*/i, 'striber_dek'],
-    [/skrifttype\s*[:.]?\s*/i, 'skrifttype'],
-    [/undervogn\s*[:.]?\s*/i, 'undervogn'],
-    [/(?:^|\s)hjul\s*[:.]?\s*/i, 'hjul'],
-    [/kant\s*(?:p(?:å|aa?)\s*)?hjul\s*[:.]?\s*/i, 'kant_paa_hjul'],
-    [/v(?:æ|ae?)rkt(?:ø|oe?)jsks?\.?\s*[:.]?\s*/i, 'vaerktoejsks'],
-    [/tank\s*[:.]?\s*/i, 'tank'],
-    [/kran\s*[:.]?\s*/i, 'kran'],
-    [/(?:^|\s)lift\s*[:.]?\s*/i, 'lift'],
-    [/lad\s*opbyg\.?\s*[:.]?\s*/i, 'lad_opbyg'],
-    [/fjelder\s*[:.]?\s*/i, 'fjelder'],
-    [/kasse\s*[:.]?\s*/i, 'kasse'],
-    [/folienr\.?\s*[:.]?\s*/i, 'folienr'],
-    [/bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, 'bemaerkninger'],
-  ]
-
-  // Try to extract labeled fields from each line
-  let foundLabels = false
-  for (const line of lines) {
-    for (const [pattern, field] of labelMap) {
-      const match = line.match(pattern)
-      if (match) {
-        const value = line.slice(match.index! + match[0].length).trim()
-        if (value && value !== '-') {
-          // Handle second telefonnummer/mobiltelefon
-          if (field === 'telefonnummer' && result.telefonnummer) {
-            result.telefonnummer2 = value
-          } else if (field === 'mobiltelefon' && result.mobiltelefon) {
-            result.mobiltelefon2 = value
-          } else {
-            result[field] = value
-          }
-          foundLabels = true
-        }
-        break
-      }
-    }
+  // Build a lookup: lowercase label -> field name
+  const labelToField = new Map<string, string>()
+  for (const [label, field] of LABEL_DEFS) {
+    labelToField.set(label.toLowerCase(), field)
   }
 
-  // Also check for "Postnummer: 2980  By: Kokkedal" style combined lines
+  // Process all lines, finding ALL labels per line and extracting the value
+  // between the current label's end and the next label's start.
+  let foundLabels = false
+  const dupCount: Record<string, number> = {}
+
   for (const line of lines) {
-    const comboMatch = line.match(/post(?:nummer|nr\.?)\s*[:.]?\s*(\d{4})\s+(?:by\s*[:.]?\s*)?([A-ZÆØÅa-zæøå]+(?:\s[A-ZÆØÅa-zæøå]+)?)/i)
-    if (comboMatch) {
-      result.postnummer = comboMatch[1]
-      result.by_navn = comboMatch[2]
+    // Find all label matches in this line with their positions
+    const matches: { label: string; field: string; start: number; end: number }[] = []
+    multiLabelRe.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = multiLabelRe.exec(line)) !== null) {
+      const matchedLabel = m[1].toLowerCase()
+      const field = labelToField.get(matchedLabel)
+      if (field) {
+        matches.push({
+          label: m[1],
+          field,
+          start: m.index,
+          end: m.index + m[0].length,
+        })
+      }
+    }
+
+    if (matches.length === 0) continue
+
+    // Extract value for each label: from label end to next label start (or end of line)
+    for (let i = 0; i < matches.length; i++) {
+      const valueEnd = i + 1 < matches.length ? matches[i + 1].start : line.length
+      const value = line.slice(matches[i].end, valueEnd).trim()
+
+      if (!value || value === '-' || value === ':') continue
+
+      const field = matches[i].field
+
+      // Handle duplicate fields (telefonnummer x2, mobiltelefon x2)
+      dupCount[field] = (dupCount[field] || 0) + 1
+      if (field === 'telefonnummer' && dupCount[field] > 1) {
+        result.telefonnummer2 = value
+      } else if (field === 'mobiltelefon' && dupCount[field] > 1) {
+        result.mobiltelefon2 = value
+      } else {
+        result[field] = value
+      }
       foundLabels = true
     }
   }
@@ -88,11 +122,11 @@ export function parseScannedText(text: string): Record<string, string> {
   // Bemærkninger: collect multiple lines after the label
   const bemIdx = lines.findIndex(l => /bem(?:æ|ae?)rkninger\s*[:.]?\s*/i.test(l))
   if (bemIdx >= 0) {
-    const firstLine = lines[bemIdx].replace(/bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, '').trim()
+    const firstLine = lines[bemIdx].replace(/.*?bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, '').trim()
     const bemLines = firstLine ? [firstLine] : []
     for (let i = bemIdx + 1; i < lines.length; i++) {
-      const isLabel = labelMap.some(([p]) => p.test(lines[i]))
-      if (isLabel) break
+      multiLabelRe.lastIndex = 0
+      if (multiLabelRe.test(lines[i]) && !/bem(?:æ|ae?)rkninger/i.test(lines[i])) break
       bemLines.push(lines[i])
     }
     if (bemLines.length > 0) {
@@ -101,10 +135,10 @@ export function parseScannedText(text: string): Record<string, string> {
     }
   }
 
-  // If we found labeled fields, return - structured document
   if (foundLabels) return result
 
   // --- Fallback: free-form parsing (business cards, invoices etc.) ---
+  const fullText = lines.join(' ')
 
   // Phone numbers
   const phoneMatches = fullText.match(/(?:\+45\s?)?(?:\d{2}\s?){4}/g)

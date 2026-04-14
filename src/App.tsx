@@ -8,6 +8,7 @@ import ImageScanner from './components/ImageScanner'
 import CustomerSearch from './components/CustomerSearch'
 import { generatePDF } from './components/CustomerPrint'
 import AumaFlowIntro from './components/AumaFlowIntro'
+import ScanPreview from './components/ScanPreview'
 
 type View = 'home' | 'create' | 'edit' | 'search' | 'scan'
 type Tab = 'kunde' | 'flow' | 'billeder'
@@ -142,8 +143,9 @@ export default function App() {
     'lad_opbyg','fjelder','kasse','folienr','bemaerkninger',
   ])
 
-  // Store pending images from scan that need upload after customer is created/selected
   const [pendingImages, setPendingImages] = useState<File[]>([])
+  const [scanPreviewData, setScanPreviewData] = useState<Record<string, string> | null>(null)
+  const [scanPendingExtracted, setScanPendingExtracted] = useState<File[]>([])
 
   const uploadExtractedImages = async (customerId: string, files: File[]) => {
     for (const file of files) {
@@ -160,11 +162,18 @@ export default function App() {
           image_url: imageUrl,
           image_name: file.name,
         }])
-      } catch { /* skip failed uploads */ }
+      } catch { /* skip */ }
     }
   }
 
-  const handleScanResult = async (data: Partial<typeof formData>, extractedImages?: File[]) => {
+  // Step 1: scan complete -> show preview for user to verify/edit
+  const handleScanResult = async (_data: Partial<typeof formData>, extractedImages?: File[]) => {
+    setScanPreviewData(_data as Record<string, string>)
+    setScanPendingExtracted(extractedImages || [])
+  }
+
+  // Step 2: user confirms mapping -> apply data
+  const handleScanConfirm = async (data: Record<string, string>) => {
     setFormData(prev => ({
       ...prev,
       ...Object.fromEntries(
@@ -173,7 +182,6 @@ export default function App() {
     }))
     setView(selectedCustomer ? 'edit' : 'create')
 
-    // Switch to the tab that has most data
     const hasFlow = Object.keys(data).some(k => flowFields.has(k))
     const hasKunde = Object.keys(data).some(k => !flowFields.has(k))
     if (hasFlow && !hasKunde) {
@@ -183,20 +191,26 @@ export default function App() {
     }
 
     // Handle extracted images
-    if (extractedImages && extractedImages.length > 0) {
+    const imgs = scanPendingExtracted
+    if (imgs.length > 0) {
       if (selectedCustomer) {
-        // Upload immediately if customer exists
-        await uploadExtractedImages(selectedCustomer.id, extractedImages)
+        await uploadExtractedImages(selectedCustomer.id, imgs)
         loadImages(selectedCustomer.id)
-        showMessage(`Data udfyldt + ${extractedImages.length} billede(r) uploadet!`)
+        showMessage(`Data udfyldt + ${imgs.length} billede(r) uploadet!`)
       } else {
-        // Store for later upload after customer creation
-        setPendingImages(extractedImages)
-        showMessage(`Data udfyldt! ${extractedImages.length} billede(r) uploades efter oprettelse.`)
+        setPendingImages(imgs)
+        showMessage(`Data udfyldt! ${imgs.length} billede(r) uploades efter oprettelse.`)
       }
     } else {
       showMessage('Data udfyldt fra scanning!')
     }
+    setScanPreviewData(null)
+    setScanPendingExtracted([])
+  }
+
+  const handleScanCancel = () => {
+    setScanPreviewData(null)
+    setScanPendingExtracted([])
   }
 
   const handlePrint = async () => {
@@ -294,9 +308,18 @@ export default function App() {
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Upload til scan</h2>
-              <button onClick={() => setView(selectedCustomer ? 'edit' : 'home')} className="text-gray-500 hover:text-gray-700 text-sm">Luk</button>
+              <button onClick={() => { setView(selectedCustomer ? 'edit' : 'home'); handleScanCancel() }} className="text-gray-500 hover:text-gray-700 text-sm">Luk</button>
             </div>
             <ImageScanner onScanComplete={handleScanResult} />
+            {scanPreviewData && (
+              <div className="mt-4">
+                <ScanPreview
+                  parsed={scanPreviewData}
+                  onConfirm={handleScanConfirm}
+                  onCancel={handleScanCancel}
+                />
+              </div>
+            )}
           </div>
         )}
 
