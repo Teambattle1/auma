@@ -316,8 +316,10 @@ async function extractPdfText(
 }
 
 /**
- * Extract embedded images from a PDF using the operator list.
- * Returns an array of File objects (PNG).
+ * Extract images from a PDF. Two strategies:
+ * 1. Try operator list for embedded image objects
+ * 2. Fallback: render page and crop the photo region (bottom portion)
+ *    by scanning for non-white pixel blocks
  */
 async function extractPdfImages(file: File): Promise<File[]> {
   const images: File[] = []
@@ -327,65 +329,117 @@ async function extractPdfImages(file: File): Promise<File[]> {
 
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p)
-      const ops = await page.getOperatorList()
 
-      for (let i = 0; i < ops.fnArray.length; i++) {
-        // OPS.paintImageXObject = 85
-        if (ops.fnArray[i] === 85) {
-          const imgName = ops.argsArray[i][0]
-          try {
-            const imgObj: any = await new Promise((resolve, reject) => {
-              (page as any).objs.get(imgName, (obj: any) => {
-                if (obj) resolve(obj)
-                else reject(new Error('No image'))
+      // Strategy 1: try operator list
+      let foundViaOps = false
+      try {
+        const ops = await page.getOperatorList()
+        for (let i = 0; i < ops.fnArray.length; i++) {
+          if (ops.fnArray[i] === 85) {
+            const imgName = ops.argsArray[i][0]
+            try {
+              const imgObj: any = await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('timeout')), 2000);
+                (page as any).objs.get(imgName, (obj: any) => {
+                  clearTimeout(timeout)
+                  if (obj) resolve(obj); else reject(new Error('No image'))
+                })
               })
-            })
+              if (!imgObj?.width || !imgObj?.height) continue
+              if (imgObj.width < 100 || imgObj.height < 100) continue
 
-            if (!imgObj || !imgObj.width || !imgObj.height) continue
-            // Skip tiny images (icons, bullets etc.)
-            if (imgObj.width < 50 || imgObj.height < 50) continue
-
-            const canvas = document.createElement('canvas')
-            canvas.width = imgObj.width
-            canvas.height = imgObj.height
-            const ctx = canvas.getContext('2d')!
-
-            // imgObj.data is a Uint8ClampedArray in RGBA format (or RGB)
-            const data = imgObj.data
-            if (data && data.length > 0) {
-              const imgData = ctx.createImageData(imgObj.width, imgObj.height)
-              if (data.length === imgObj.width * imgObj.height * 4) {
-                // RGBA
-                imgData.data.set(data)
-              } else if (data.length === imgObj.width * imgObj.height * 3) {
-                // RGB -> RGBA
-                for (let j = 0, k = 0; j < data.length; j += 3, k += 4) {
-                  imgData.data[k] = data[j]
-                  imgData.data[k + 1] = data[j + 1]
-                  imgData.data[k + 2] = data[j + 2]
-                  imgData.data[k + 3] = 255
+              const canvas = document.createElement('canvas')
+              canvas.width = imgObj.width
+              canvas.height = imgObj.height
+              const ctx = canvas.getContext('2d')!
+              const data = imgObj.data
+              if (data && data.length > 0) {
+                const imgData = ctx.createImageData(imgObj.width, imgObj.height)
+                if (data.length === imgObj.width * imgObj.height * 4) {
+                  imgData.data.set(data)
+                } else if (data.length === imgObj.width * imgObj.height * 3) {
+                  for (let j = 0, k = 0; j < data.length; j += 3, k += 4) {
+                    imgData.data[k] = data[j]; imgData.data[k+1] = data[j+1]
+                    imgData.data[k+2] = data[j+2]; imgData.data[k+3] = 255
+                  }
+                } else continue
+                ctx.putImageData(imgData, 0, 0)
+                const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, 'image/png'))
+                if (blob && blob.size > 10000) {
+                  images.push(new File([blob], `pdf-billede-${p}-${i}.png`, { type: 'image/png' }))
+                  foundViaOps = true
                 }
-              } else {
-                continue
               }
-              ctx.putImageData(imgData, 0, 0)
-
-              const blob = await new Promise<Blob | null>((resolve) =>
-                canvas.toBlob(resolve, 'image/png')
-              )
-              if (blob && blob.size > 5000) {
-                images.push(new File([blob], `pdf-billede-${p}-${i}.png`, { type: 'image/png' }))
-              }
-            }
-          } catch {
-            // Skip images that fail to extract
+            } catch { /* skip individual image */ }
           }
         }
+      } catch { /* ops failed */ }
+
+      // Strategy 2: if no images found via ops, render page and crop photo area
+      if (!foundViaOps) {
+        try {
+          const scale = 2.0
+          const viewport = page.getViewport({ scale })
+          const canvas = document.createElement('canvas')
+          canvas.width = viewport.width
+          canvas.height = viewport.height
+          const ctx = canvas.getContext('2d')!
+          await page.render({ canvasContext: ctx, viewport, canvas } as any).promise
+
+          // Scan from bottom up to find where the photo starts
+          // Photos have colorful pixels vs white/text areas
+          const w = canvas.width
+          const h = canvas.height
+          const pixels = ctx.getImageData(0, 0, w, h).data
+
+          // Find the top edge of the photo by scanning rows from bottom
+          // A "photo row" has many colored (non-white, non-near-white) pixels
+          let photoTop = h
+          const threshold = 0.15 // 15% of pixels must be colorful
+          for (let row = h - 1; row > h * 0.3; row--) {
+            let colorful = 0
+            // Sample every 4th pixel for speed
+            for (let x = 0; x < w; x += 4) {
+              const idx = (row * w + x) * 4
+              const r = pixels[idx], g = pixels[idx+1], b = pixels[idx+2]
+              // Not white/near-white and not pure black text
+              if (r < 230 || g < 230 || b < 230) {
+                if (!(r < 50 && g < 50 && b < 50)) {
+                  colorful++
+                }
+              }
+            }
+            const ratio = colorful / (w / 4)
+            if (ratio >= threshold) {
+              photoTop = row
+            } else if (photoTop < h - 20) {
+              // We found the top edge - stop scanning
+              break
+            }
+          }
+
+          // Only extract if we found a substantial photo area (at least 15% of page height)
+          const photoHeight = h - photoTop
+          if (photoHeight > h * 0.15 && photoTop < h - 50) {
+            // Add some padding above
+            const cropTop = Math.max(0, photoTop - 10)
+            const cropHeight = h - cropTop
+
+            const cropCanvas = document.createElement('canvas')
+            cropCanvas.width = w
+            cropCanvas.height = cropHeight
+            const cropCtx = cropCanvas.getContext('2d')!
+            cropCtx.drawImage(canvas, 0, cropTop, w, cropHeight, 0, 0, w, cropHeight)
+
+            const blob = await new Promise<Blob | null>(r => cropCanvas.toBlob(r, 'image/png'))
+            if (blob && blob.size > 10000) {
+              images.push(new File([blob], `pdf-foto-side-${p}.png`, { type: 'image/png' }))
+            }
+          }
+        } catch { /* render crop failed */ }
       }
     }
-  } catch {
-    // Image extraction failed, not critical
-  }
+  } catch { /* extraction failed */ }
   return images
 }
 
