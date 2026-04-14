@@ -109,7 +109,7 @@ export default function MediaView({ customers, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-40 bg-white flex flex-col">
       {/* Header */}
-      <div className="bg-red-600 text-white px-4 py-3 flex items-center gap-3 shrink-0">
+      <div className="bg-red-600 text-white px-4 py-3 flex items-center gap-3 shrink-0" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.75rem)' }}>
         <button onClick={onClose} className="p-1">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -126,7 +126,7 @@ export default function MediaView({ customers, onClose }: Props) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Søg billeder..."
-          className="flex-1 min-w-[150px] border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500"
+          className="flex-1 min-w-[150px] border border-gray-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-red-500"
         />
         <select
           value={selectedCustomer}

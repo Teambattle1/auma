@@ -409,7 +409,7 @@ export default function App() {
           </div>
 
           {/* Action buttons - glossy red circles with labels below */}
-          <div className="flex justify-center gap-5 md:gap-6">
+          <div className="grid grid-cols-3 gap-4 justify-items-center md:flex md:justify-center md:gap-6">
             {[
               { label: 'Opret', onClick: () => handleCreate(), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /> },
               { label: 'Scan', onClick: () => setView('scan'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /> },
@@ -439,7 +439,7 @@ export default function App() {
         {view === 'search' && (
           <div className="fixed inset-0 z-40 bg-white md:relative md:inset-auto md:z-auto md:bg-white md:rounded-lg md:shadow-sm md:mb-6">
             <div className="flex flex-col h-full md:h-auto">
-              <div className="flex items-center gap-3 p-4 border-b border-gray-200 md:border-0">
+              <div className="flex items-center gap-3 p-4 border-b border-gray-200 md:border-0" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}>
                 <button onClick={() => setView('home')} className="p-2 -ml-2 text-gray-500 hover:text-gray-700 md:hidden">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                 </button>

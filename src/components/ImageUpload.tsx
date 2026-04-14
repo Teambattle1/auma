@@ -308,7 +308,7 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
               <span className="text-sm font-medium text-gray-700 truncate mr-4">{filteredImages[sliderIndex].image_name}</span>
               <div className="flex items-center gap-3 shrink-0">
                 <span className="text-sm text-gray-400">{sliderIndex + 1} / {filteredImages.length}</span>
-                <button onClick={closeSlider} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-lg">
+                <button onClick={closeSlider} className="w-10 h-10 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-200 text-red-600 text-xl font-bold">
                   &times;
                 </button>
               </div>

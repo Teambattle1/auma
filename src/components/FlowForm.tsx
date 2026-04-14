@@ -13,56 +13,45 @@ function FieldWithImage({
   value,
   onChange,
   fieldImage,
-  onCamera,
-  onFile,
+  onUpload,
   onViewImage,
-  mobile,
+  onBlur,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   fieldImage: VehicleFieldImage | undefined
-  onCamera: () => void
-  onFile: () => void
+  onUpload: () => void
   onViewImage: (url: string, fieldName: string) => void
-  mobile: boolean
+  onBlur?: () => void
   fieldName: string
 }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5 items-stretch">
         <input
           type="text"
           value={value}
           onChange={e => onChange(e.target.value)}
+          onBlur={onBlur}
           className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
         />
         {fieldImage ? (
           <button
             onClick={() => onViewImage(fieldImage.image_url, label)}
-            className="w-9 h-9 rounded-md border-2 border-green-500 overflow-hidden shrink-0"
+            className="w-11 h-11 rounded-md border-2 border-red-500 overflow-hidden shrink-0 shadow-sm"
           >
             <img src={fieldImage.image_url} alt="" className="w-full h-full object-cover" />
           </button>
-        ) : mobile ? (
-          <button
-            onClick={onCamera}
-            className="w-9 h-9 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 shrink-0 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-            </svg>
-          </button>
         ) : (
-          <button
-            onClick={onFile}
-            className="w-9 h-9 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 shrink-0 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          <label className="w-11 h-11 rounded-md bg-red-600 flex items-center justify-center text-white shrink-0 cursor-pointer hover:bg-red-700 active:scale-95 transition-all shadow-sm">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-          </button>
+            <input type="file" accept="image/*" className="hidden" onChange={() => onUpload()} />
+          </label>
         )}
       </div>
     </div>
@@ -76,14 +65,11 @@ export default function FlowForm({ customerId }: Props) {
   const [fieldImages, setFieldImages] = useState<VehicleFieldImage[]>([])
   const [saving, setSaving] = useState(false)
   const [pendingField, setPendingField] = useState<string | null>(null)
-  const [mobile] = useState(isMobile)
-  // Preview popup state
   const [previewImg, setPreviewImg] = useState<string | null>(null)
   const [previewLabel, setPreviewLabel] = useState('')
   const [previewField, setPreviewField] = useState<string | null>(null)
 
   const fileRef = useRef<HTMLInputElement>(null)
-  const cameraRef = useRef<HTMLInputElement>(null)
 
   const loadVehicles = useCallback(async () => {
     const { data } = await supabase
@@ -128,6 +114,12 @@ export default function FlowForm({ customerId }: Props) {
 
   const set = (field: string) => (val: string) =>
     setFormData(prev => ({ ...prev, [field]: val }))
+
+  // Auto-save on field blur
+  const handleBlurSave = async () => {
+    if (!activeVehicleId) return
+    await supabase.from('customer_vehicles').update(formData).eq('id', activeVehicleId)
+  }
 
   const handleAddVehicle = async () => {
     let newData = { ...emptyVehicle }
@@ -251,14 +243,8 @@ export default function FlowForm({ customerId }: Props) {
     loadFieldImages(activeVehicleId)
   }
 
-  // Camera capture (mobile)
-  const handleCameraCapture = (fieldName: string) => {
-    setPendingField(fieldName)
-    cameraRef.current?.click()
-  }
-
-  // File select (desktop)
-  const handleFileSelect = (fieldName: string) => {
+  // Open file picker (iPhone shows "Take Photo / Photo Library / Browse")
+  const handleFieldUpload = (fieldName: string) => {
     setPendingField(fieldName)
     fileRef.current?.click()
   }
@@ -285,11 +271,7 @@ export default function FlowForm({ customerId }: Props) {
   const handleRetake = () => {
     if (!previewField) return
     setPreviewImg(null)
-    if (mobile) {
-      handleCameraCapture(previewField)
-    } else {
-      handleFileSelect(previewField)
-    }
+    handleFieldUpload(previewField)
   }
 
   const handleRemoveFieldImage = async () => {
@@ -312,8 +294,7 @@ export default function FlowForm({ customerId }: Props) {
 
   return (
     <div>
-      {/* Hidden file inputs */}
-      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+      {/* Hidden file input for field images */}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
       {/* Vehicle selector */}
@@ -366,6 +347,7 @@ export default function FlowForm({ customerId }: Props) {
                 value={formData.emne}
                 onChange={e => set('emne')(e.target.value)}
                 placeholder="f.eks. Volvo, Scania..."
+                onBlur={handleBlurSave}
                 className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm font-medium focus:ring-2 focus:ring-red-500 focus:border-red-500"
               />
             </div>
@@ -384,10 +366,6 @@ export default function FlowForm({ customerId }: Props) {
             <div className="h-0.5 bg-red-600 flex-grow" />
           </div>
 
-          {mobile && (
-            <p className="text-xs text-gray-400 mb-3 text-center">Tryk kamera-ikon for at tage billede til en linje</p>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
             <div className="space-y-3">
               {leftFields.map(f => (
@@ -398,10 +376,9 @@ export default function FlowForm({ customerId }: Props) {
                   value={(formData as any)[f.key] || ''}
                   onChange={set(f.key)}
                   fieldImage={getFieldImage(f.key)}
-                  onCamera={() => handleCameraCapture(f.key)}
-                  onFile={() => handleFileSelect(f.key)}
+                  onUpload={() => handleFieldUpload(f.key)}
                   onViewImage={handleViewImage}
-                  mobile={mobile}
+                  onBlur={handleBlurSave}
                 />
               ))}
             </div>
@@ -414,10 +391,9 @@ export default function FlowForm({ customerId }: Props) {
                   value={(formData as any)[f.key] || ''}
                   onChange={set(f.key)}
                   fieldImage={getFieldImage(f.key)}
-                  onCamera={() => handleCameraCapture(f.key)}
-                  onFile={() => handleFileSelect(f.key)}
+                  onUpload={() => handleFieldUpload(f.key)}
                   onViewImage={handleViewImage}
-                  mobile={mobile}
+                  onBlur={handleBlurSave}
                 />
               ))}
             </div>
@@ -465,7 +441,7 @@ export default function FlowForm({ customerId }: Props) {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 </svg>
-                {mobile ? 'Tag nyt billede' : 'Vælg nyt billede'}
+                {isMobile() ? 'TAG NYT BILLEDE' : 'VÆLG NYT BILLEDE'}
               </button>
               <button
                 onClick={handleRemoveFieldImage}
