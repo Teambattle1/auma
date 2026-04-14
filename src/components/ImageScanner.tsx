@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { scanFile } from '../lib/scanParser'
 
 interface Props {
-  onScanComplete: (data: Record<string, string>) => void
+  onScanComplete: (data: Record<string, string>, extractedImages?: File[]) => void
 }
 
 export default function ImageScanner({ onScanComplete }: Props) {
@@ -10,6 +10,7 @@ export default function ImageScanner({ onScanComplete }: Props) {
   const [progress, setProgress] = useState(0)
   const [preview, setPreview] = useState<string | null>(null)
   const [rawText, setRawText] = useState('')
+  const [imgCount, setImgCount] = useState(0)
   const fileInput = useRef<HTMLInputElement>(null)
 
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -20,12 +21,14 @@ export default function ImageScanner({ onScanComplete }: Props) {
     setProgress(0)
     setPreview(null)
     setRawText('')
+    setImgCount(0)
 
     try {
-      const { parsed, rawText: text, preview: prev } = await scanFile(file, setProgress)
+      const { parsed, rawText: text, preview: prev, extractedImages } = await scanFile(file, setProgress)
       setRawText(text)
       if (prev) setPreview(prev)
-      onScanComplete(parsed)
+      setImgCount(extractedImages.length)
+      onScanComplete(parsed, extractedImages)
     } catch (err: any) {
       alert('Scanning fejl: ' + err.message)
     }
@@ -37,7 +40,7 @@ export default function ImageScanner({ onScanComplete }: Props) {
   return (
     <div>
       <p className="text-sm text-gray-600 mb-4">
-        Upload et billede eller PDF. Systemet scanner teksten og udfylder kundeoplysninger og Flow-felter automatisk.
+        Upload et billede eller PDF. Systemet scanner teksten og udfylder kundeoplysninger og Flow-felter automatisk. Billeder i dokumentet uploades til Kundebilleder.
       </p>
 
       <label className="inline-flex items-center gap-2 px-5 py-3 bg-purple-600 text-white rounded-lg cursor-pointer hover:bg-purple-700 transition-colors">
@@ -68,19 +71,26 @@ export default function ImageScanner({ onScanComplete }: Props) {
       )}
 
       {preview && !scanning && (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs font-medium text-gray-500 mb-2">Scannet dokument:</p>
-            <img src={preview} alt="Scanned" className="w-full rounded-lg border border-gray-200" />
-          </div>
-          {rawText && (
-            <div>
-              <p className="text-xs font-medium text-gray-500 mb-2">Fundet tekst:</p>
-              <pre className="text-xs bg-gray-50 p-3 rounded-lg border border-gray-200 whitespace-pre-wrap max-h-64 overflow-auto">
-                {rawText}
-              </pre>
-            </div>
+        <div className="mt-4">
+          {imgCount > 0 && (
+            <p className="text-sm text-green-700 font-medium mb-3">
+              {imgCount} billede(r) fundet og tilføjet til Kundebilleder
+            </p>
           )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-medium text-gray-500 mb-2">Scannet dokument:</p>
+              <img src={preview} alt="Scanned" className="w-full rounded-lg border border-gray-200" />
+            </div>
+            {rawText && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 mb-2">Fundet tekst:</p>
+                <pre className="text-xs bg-gray-50 p-3 rounded-lg border border-gray-200 whitespace-pre-wrap max-h-64 overflow-auto">
+                  {rawText}
+                </pre>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

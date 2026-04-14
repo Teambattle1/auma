@@ -237,16 +237,91 @@ async function extractPdfText(
 }
 
 /**
- * Scan a file (image or PDF) and return parsed customer data.
+ * Extract embedded images from a PDF using the operator list.
+ * Returns an array of File objects (PNG).
+ */
+async function extractPdfImages(file: File): Promise<File[]> {
+  const images: File[] = []
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p)
+      const ops = await page.getOperatorList()
+
+      for (let i = 0; i < ops.fnArray.length; i++) {
+        // OPS.paintImageXObject = 85
+        if (ops.fnArray[i] === 85) {
+          const imgName = ops.argsArray[i][0]
+          try {
+            const imgObj: any = await new Promise((resolve, reject) => {
+              (page as any).objs.get(imgName, (obj: any) => {
+                if (obj) resolve(obj)
+                else reject(new Error('No image'))
+              })
+            })
+
+            if (!imgObj || !imgObj.width || !imgObj.height) continue
+            // Skip tiny images (icons, bullets etc.)
+            if (imgObj.width < 50 || imgObj.height < 50) continue
+
+            const canvas = document.createElement('canvas')
+            canvas.width = imgObj.width
+            canvas.height = imgObj.height
+            const ctx = canvas.getContext('2d')!
+
+            // imgObj.data is a Uint8ClampedArray in RGBA format (or RGB)
+            const data = imgObj.data
+            if (data && data.length > 0) {
+              const imgData = ctx.createImageData(imgObj.width, imgObj.height)
+              if (data.length === imgObj.width * imgObj.height * 4) {
+                // RGBA
+                imgData.data.set(data)
+              } else if (data.length === imgObj.width * imgObj.height * 3) {
+                // RGB -> RGBA
+                for (let j = 0, k = 0; j < data.length; j += 3, k += 4) {
+                  imgData.data[k] = data[j]
+                  imgData.data[k + 1] = data[j + 1]
+                  imgData.data[k + 2] = data[j + 2]
+                  imgData.data[k + 3] = 255
+                }
+              } else {
+                continue
+              }
+              ctx.putImageData(imgData, 0, 0)
+
+              const blob = await new Promise<Blob | null>((resolve) =>
+                canvas.toBlob(resolve, 'image/png')
+              )
+              if (blob && blob.size > 5000) {
+                images.push(new File([blob], `pdf-billede-${p}-${i}.png`, { type: 'image/png' }))
+              }
+            }
+          } catch {
+            // Skip images that fail to extract
+          }
+        }
+      }
+    }
+  } catch {
+    // Image extraction failed, not critical
+  }
+  return images
+}
+
+/**
+ * Scan a file (image or PDF) and return parsed customer data + extracted images.
  */
 export async function scanFile(
   file: File,
   onProgress: (p: number) => void
-): Promise<{ parsed: Record<string, string>; rawText: string; preview: string | null }> {
+): Promise<{ parsed: Record<string, string>; rawText: string; preview: string | null; extractedImages: File[] }> {
   const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
 
   let rawText: string
   let preview: string | null = null
+  let extractedImages: File[] = []
 
   if (isPdf) {
     rawText = await extractPdfText(file, onProgress)
@@ -263,8 +338,10 @@ export async function scanFile(
       await page.render({ canvasContext: ctx, viewport, canvas } as any).promise
       preview = canvas.toDataURL('image/png')
     } catch {
-      // Preview generation failed, not critical
+      // Preview generation failed
     }
+    // Extract embedded images from the PDF
+    extractedImages = await extractPdfImages(file)
   } else {
     // Image file - use Tesseract OCR
     const result = await Tesseract.recognize(file, 'dan+eng', {
@@ -275,7 +352,6 @@ export async function scanFile(
       },
     })
     rawText = result.data.text
-    // Preview from image
     preview = await new Promise<string>((resolve) => {
       const reader = new FileReader()
       reader.onload = (ev) => resolve(ev.target?.result as string)
@@ -284,7 +360,7 @@ export async function scanFile(
   }
 
   const parsed = parseScannedText(rawText)
-  return { parsed, rawText, preview }
+  return { parsed, rawText, preview, extractedImages }
 }
 
 // Keep backwards-compatible alias

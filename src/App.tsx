@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from './lib/supabase'
+import { supabase, supabaseUrl } from './lib/supabase'
 import { Customer, CustomerImage, emptyCustomer } from './types/customer'
 import CustomerForm from './components/CustomerForm'
 import FlowForm from './components/FlowForm'
@@ -92,7 +92,15 @@ export default function App() {
         if (error) throw error
         setSelectedCustomer(data)
         setView('edit')
-        showMessage('Kunde oprettet!')
+        // Upload pending images from scan
+        if (pendingImages.length > 0) {
+          await uploadExtractedImages(data.id, pendingImages)
+          setPendingImages([])
+          loadImages(data.id)
+          showMessage(`Kunde oprettet + ${pendingImages.length} billede(r) uploadet!`)
+        } else {
+          showMessage('Kunde oprettet!')
+        }
       } else if (view === 'edit' && selectedCustomer) {
         const { error } = await supabase
           .from('customers')
@@ -134,7 +142,29 @@ export default function App() {
     'lad_opbyg','fjelder','kasse','folienr','bemaerkninger',
   ])
 
-  const handleScanResult = (data: Partial<typeof formData>) => {
+  // Store pending images from scan that need upload after customer is created/selected
+  const [pendingImages, setPendingImages] = useState<File[]>([])
+
+  const uploadExtractedImages = async (customerId: string, files: File[]) => {
+    for (const file of files) {
+      try {
+        const fileName = `${customerId}/${Date.now()}-${Math.random().toString(36).slice(2)}.png`
+        const { error: uploadError } = await supabase.storage
+          .from('customer-images')
+          .upload(fileName, file)
+        if (uploadError) continue
+
+        const imageUrl = `${supabaseUrl}/storage/v1/object/public/customer-images/${fileName}`
+        await supabase.from('customer_images').insert([{
+          customer_id: customerId,
+          image_url: imageUrl,
+          image_name: file.name,
+        }])
+      } catch { /* skip failed uploads */ }
+    }
+  }
+
+  const handleScanResult = async (data: Partial<typeof formData>, extractedImages?: File[]) => {
     setFormData(prev => ({
       ...prev,
       ...Object.fromEntries(
@@ -151,7 +181,22 @@ export default function App() {
     } else {
       setActiveTab('kunde')
     }
-    showMessage('Data udfyldt fra scanning!')
+
+    // Handle extracted images
+    if (extractedImages && extractedImages.length > 0) {
+      if (selectedCustomer) {
+        // Upload immediately if customer exists
+        await uploadExtractedImages(selectedCustomer.id, extractedImages)
+        loadImages(selectedCustomer.id)
+        showMessage(`Data udfyldt + ${extractedImages.length} billede(r) uploadet!`)
+      } else {
+        // Store for later upload after customer creation
+        setPendingImages(extractedImages)
+        showMessage(`Data udfyldt! ${extractedImages.length} billede(r) uploades efter oprettelse.`)
+      }
+    } else {
+      showMessage('Data udfyldt fra scanning!')
+    }
   }
 
   const handlePrint = async () => {
