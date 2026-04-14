@@ -12,17 +12,44 @@ export function parseScannedText(text: string): Record<string, string> {
   // --- Label-based parsing (structured documents like customer cards) ---
   // Maps label patterns to our field names
   const labelMap: [RegExp, string][] = [
+    // Kundeoplysninger
     [/kunde(?:nummer|nr\.?)\s*[:.]?\s*/i, 'kundenummer'],
     [/firma\s*[:.]?\s*/i, 'firma'],
-    [/navn\s*[:.]?\s*/i, 'navn'],
+    [/^navn\s*[:.]?\s*/i, 'navn'],
     [/adresse\s*[:.]?\s*/i, 'adresse'],
     [/post(?:nummer|nr\.?)\s*[:.]?\s*/i, 'postnummer'],
     [/(?:^|\s)by\s*[:.]?\s*/i, 'by_navn'],
-    [/telefonnummer\s*2?\s*[:.]?\s*/i, 'telefonnummer'],
+    [/telefonnummer\s*[:.]?\s*/i, 'telefonnummer'],
     [/telefonnr\.?\s*[:.]?\s*/i, 'telefonnummer'],
     [/tlf\.?\s*[:.]?\s*/i, 'telefonnummer'],
     [/fax\s*[:.]?\s*/i, 'fax'],
     [/mobil(?:telefon|nr\.?)?\s*[:.]?\s*/i, 'mobiltelefon'],
+    // Flow
+    [/ordrenr\.?\s*[:.]?\s*/i, 'ordrenr'],
+    [/emne\s*[:.]?\s*/i, 'emne'],
+    [/(?:^|\s)id\s*[:.]?\s*/i, 'flow_id'],
+    [/f(?:ø|oe?)rerhus\s*[:.]?\s*/i, 'foererhus'],
+    [/sk(?:æ|ae?)rme\s*[:.]?\s*/i, 'skaerme'],
+    [/kofanger\s*[:.]?\s*/i, 'kofanger'],
+    [/solsk(?:æ|ae?)rm\s*[:.]?\s*/i, 'solskaerm'],
+    [/stige\s*[:.]?\s*/i, 'stige'],
+    [/tagbagage\s*[:.]?\s*/i, 'tagbagage'],
+    [/luftfilter\s*[:.]?\s*/i, 'luftfilter'],
+    [/spoiler\s*[:.]?\s*/i, 'spoiler'],
+    [/striber\/?dek\.?\s*[:.]?\s*/i, 'striber_dek'],
+    [/skrifttype\s*[:.]?\s*/i, 'skrifttype'],
+    [/undervogn\s*[:.]?\s*/i, 'undervogn'],
+    [/(?:^|\s)hjul\s*[:.]?\s*/i, 'hjul'],
+    [/kant\s*(?:p(?:å|aa?)\s*)?hjul\s*[:.]?\s*/i, 'kant_paa_hjul'],
+    [/v(?:æ|ae?)rkt(?:ø|oe?)jsks?\.?\s*[:.]?\s*/i, 'vaerktoejsks'],
+    [/tank\s*[:.]?\s*/i, 'tank'],
+    [/kran\s*[:.]?\s*/i, 'kran'],
+    [/(?:^|\s)lift\s*[:.]?\s*/i, 'lift'],
+    [/lad\s*opbyg\.?\s*[:.]?\s*/i, 'lad_opbyg'],
+    [/fjelder\s*[:.]?\s*/i, 'fjelder'],
+    [/kasse\s*[:.]?\s*/i, 'kasse'],
+    [/folienr\.?\s*[:.]?\s*/i, 'folienr'],
+    [/bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, 'bemaerkninger'],
   ]
 
   // Try to extract labeled fields from each line
@@ -58,7 +85,23 @@ export function parseScannedText(text: string): Record<string, string> {
     }
   }
 
-  // If we found labeled fields, return early - structured document
+  // Bemærkninger: collect multiple lines after the label
+  const bemIdx = lines.findIndex(l => /bem(?:æ|ae?)rkninger\s*[:.]?\s*/i.test(l))
+  if (bemIdx >= 0) {
+    const firstLine = lines[bemIdx].replace(/bem(?:æ|ae?)rkninger\s*[:.]?\s*/i, '').trim()
+    const bemLines = firstLine ? [firstLine] : []
+    for (let i = bemIdx + 1; i < lines.length; i++) {
+      const isLabel = labelMap.some(([p]) => p.test(lines[i]))
+      if (isLabel) break
+      bemLines.push(lines[i])
+    }
+    if (bemLines.length > 0) {
+      result.bemaerkninger = bemLines.join('\n')
+      foundLabels = true
+    }
+  }
+
+  // If we found labeled fields, return - structured document
   if (foundLabels) return result
 
   // --- Fallback: free-form parsing (business cards, invoices etc.) ---
