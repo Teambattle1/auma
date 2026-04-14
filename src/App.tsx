@@ -307,7 +307,7 @@ export default function App() {
   const tabs: { key: Tab; label: string; color: string }[] = [
     { key: 'kunde', label: 'KUNDEOPLYSNINGER', color: 'blue' },
     { key: 'flow', label: 'FLOW', color: 'red' },
-    { key: 'billeder', label: `KUNDEBILLEDER (${customerImages.length})`, color: 'green' },
+    { key: 'billeder', label: `BILLEDER (${customerImages.length})`, color: 'green' },
   ]
 
   return (
@@ -427,20 +427,20 @@ export default function App() {
               </div>
 
               {/* Tabs */}
-              <div className="px-6 mt-4 border-b border-gray-200 no-print">
-                <div className="flex gap-0">
+              <div className="px-4 md:px-6 mt-4 no-print">
+                <div className="flex gap-1.5">
                   {tabs.map(tab => (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`px-5 py-3 text-xs font-bold tracking-wider border-b-3 transition-colors ${
+                      className={`flex-1 py-3 text-xs font-bold tracking-wider rounded-t-lg transition-colors ${
                         activeTab === tab.key
                           ? tab.color === 'blue'
-                            ? 'border-blue-600 text-blue-700 bg-blue-50'
+                            ? 'bg-blue-600 text-white'
                             : tab.color === 'red'
-                            ? 'border-red-600 text-red-700 bg-red-50'
-                            : 'border-green-600 text-green-700 bg-green-50'
-                          : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-green-600 text-white'
+                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
                     >
                       {tab.label}

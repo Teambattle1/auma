@@ -182,14 +182,23 @@ export default function FlowForm({ customerId }: Props) {
   const uploadFieldImage = async (file: File, fieldName: string) => {
     if (!activeVehicleId) return
 
-    const ext = file.name.split('.').pop()
-    const fileName = `field-images/${activeVehicleId}/${fieldName}-${Date.now()}.${ext}`
-    const { error: upErr } = await supabase.storage.from('customer-images').upload(fileName, file)
+    // Ensure proper extension (camera captures may not have one)
+    let ext = file.name.split('.').pop()?.toLowerCase()
+    if (!ext || ext === file.name) {
+      ext = file.type === 'image/png' ? 'png' : 'jpg'
+    }
+    const safeFieldName = fieldName.replace(/[^a-z0-9_]/gi, '_')
+    const fileName = `field-images/${activeVehicleId}/${safeFieldName}-${Date.now()}.${ext}`
+
+    // Upload to storage
+    const { error: upErr } = await supabase.storage
+      .from('customer-images')
+      .upload(fileName, file, { contentType: file.type || 'image/jpeg' })
     if (upErr) { alert('Upload fejl: ' + upErr.message); return }
 
     const imageUrl = `${supabaseUrl}/storage/v1/object/public/customer-images/${fileName}`
 
-    // Remove old field image
+    // Remove old field image if exists
     const old = fieldImages.find(fi => fi.field_name === fieldName)
     if (old) {
       const oldPath = old.image_url.split('/customer-images/')[1]
@@ -198,29 +207,45 @@ export default function FlowForm({ customerId }: Props) {
     }
 
     // Save as field image
-    await supabase.from('vehicle_field_images').insert([{
+    const { error: fieldErr } = await supabase.from('vehicle_field_images').insert([{
       vehicle_id: activeVehicleId,
       field_name: fieldName,
       image_url: imageUrl,
-      image_name: file.name,
+      image_name: file.name || `${safeFieldName}.${ext}`,
     }])
+    if (fieldErr) { alert('Gem fejl: ' + fieldErr.message); return }
 
     // Also save to customer_images in the vehicle's album
     const vehicle = vehicles.find(v => v.id === activeVehicleId)
-    const albumName = vehicle?.emne || `Bil ${vehicles.indexOf(vehicle!) + 1}`
-    const { data: albums } = await supabase
+    const vehicleIndex = vehicle ? vehicles.indexOf(vehicle) + 1 : 1
+    const albumName = vehicle?.emne || `Bil ${vehicleIndex}`
+
+    // Find or create album for this vehicle
+    let albumId: string | null = null
+    const { data: existingAlbums } = await supabase
       .from('customer_albums')
       .select('id')
       .eq('customer_id', customerId)
       .eq('name', albumName)
       .limit(1)
-    const albumId = albums?.[0]?.id || null
 
+    if (existingAlbums && existingAlbums.length > 0) {
+      albumId = existingAlbums[0].id
+    } else {
+      const { data: newAlbum } = await supabase
+        .from('customer_albums')
+        .insert([{ customer_id: customerId, name: albumName }])
+        .select('id')
+        .single()
+      if (newAlbum) albumId = newAlbum.id
+    }
+
+    const fieldLabel = FLOW_FIELDS.find(f => f.key === fieldName)?.label || fieldName
     await supabase.from('customer_images').insert([{
       customer_id: customerId,
       album_id: albumId,
       image_url: imageUrl,
-      image_name: `${fieldName} - ${file.name}`,
+      image_name: `${fieldLabel}.${ext}`,
     }])
 
     loadFieldImages(activeVehicleId)
@@ -240,10 +265,12 @@ export default function FlowForm({ customerId }: Props) {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !pendingField) return
-    await uploadFieldImage(file, pendingField)
+    const field = pendingField
+    if (!file || !field) return
+    // Reset immediately so next click works
     setPendingField(null)
     e.target.value = ''
+    await uploadFieldImage(file, field)
   }
 
   // View image popup with retake option
