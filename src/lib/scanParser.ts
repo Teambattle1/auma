@@ -117,7 +117,7 @@ async function extractPdfText(
     canvas.height = viewport.height
     const ctx = canvas.getContext('2d')!
 
-    await page.render({ canvasContext: ctx, viewport }).promise
+    await page.render({ canvasContext: ctx, viewport, canvas } as any).promise
 
     const blob = await new Promise<Blob>((resolve) =>
       canvas.toBlob((b) => resolve(b!), 'image/png')
@@ -163,7 +163,7 @@ export async function scanFile(
       canvas.width = viewport.width
       canvas.height = viewport.height
       const ctx = canvas.getContext('2d')!
-      await page.render({ canvasContext: ctx, viewport }).promise
+      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise
       preview = canvas.toDataURL('image/png')
     } catch {
       // Preview generation failed, not critical
