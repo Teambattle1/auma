@@ -8,9 +8,10 @@ import ImageScanner from './components/ImageScanner'
 import CustomerSearch from './components/CustomerSearch'
 import { printCustomer, savePDF } from './components/CustomerPrint'
 import AumaFlowIntro from './components/AumaFlowIntro'
+import MediaView from './components/MediaView'
 import ScanPreview from './components/ScanPreview'
 
-type View = 'home' | 'create' | 'edit' | 'search' | 'scan'
+type View = 'home' | 'create' | 'edit' | 'search' | 'scan' | 'media'
 
 const isMobile = () => /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
 type Tab = 'kunde' | 'flow' | 'billeder'
@@ -18,7 +19,7 @@ type Tab = 'kunde' | 'flow' | 'billeder'
 export default function App() {
   const [showIntro, setShowIntro] = useState(true)
   const [view, setView] = useState<View>('home')
-  const [activeTab, setActiveTab] = useState<Tab>('kunde')
+  const [activeTab, setActiveTab] = useState<Tab>('flow')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [customerImages, setCustomerImages] = useState<CustomerImage[]>([])
@@ -73,6 +74,7 @@ export default function App() {
       mobil: customer.mobil || '',
       noter: customer.noter || '',
     })
+    setActiveTab('flow')
     setView('edit')
   }
 
@@ -365,14 +367,25 @@ export default function App() {
         </div>
       )}
 
-      <header className="bg-white shadow-sm border-b-2 border-red-600">
-        <div className="max-w-5xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-800">AUMA <span className="text-red-600">FLOW</span></h1>
+      <header className="bg-white shadow-sm border-b-2 border-red-600" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => { setView('home'); setSelectedCustomer(null) }}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
+            <div className="w-9 h-9 rounded-full bg-red-600 flex items-center justify-center text-white shadow-md">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+            </div>
+            <h1 className="text-xl font-bold text-gray-800">AUMA <span className="text-red-600">FLOW</span></h1>
+          </button>
+          {selectedCustomer && (
+            <span className="text-sm text-gray-500 truncate ml-3">{selectedCustomer.firma || selectedCustomer.navn}</span>
+          )}
         </div>
       </header>
 
       {message && (
-        <div className="fixed top-4 right-4 z-50 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg animate-pulse">
+        <div className="fixed right-4 z-50 bg-red-600 text-white px-6 py-3 rounded-lg shadow-lg animate-pulse" style={{ top: 'calc(env(safe-area-inset-top) + 1rem)' }}>
           {message}
         </div>
       )}
@@ -402,6 +415,7 @@ export default function App() {
               { label: 'Scan', onClick: () => setView('scan'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /> },
               { label: 'Find', onClick: () => setView('search'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /> },
               { label: 'Print', onClick: () => handlePrintClick('print'), icon: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></> },
+              { label: 'Medie', onClick: () => setView('media' as View), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /> },
               { label: 'PDF', onClick: () => handlePrintClick('pdf'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
             ].map(btn => (
               <button key={btn.label} onClick={btn.onClick} className="flex flex-col items-center gap-2 group">
@@ -489,11 +503,7 @@ export default function App() {
                       onClick={() => setActiveTab(tab.key)}
                       className={`flex-1 py-4 md:py-3 text-xs font-bold tracking-wider rounded-t-lg transition-colors ${
                         activeTab === tab.key
-                          ? tab.color === 'blue'
-                            ? 'bg-blue-600 text-white'
-                            : tab.color === 'red'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-green-600 text-white'
+                          ? 'bg-red-600 text-white'
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
                     >
@@ -543,6 +553,11 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Media */}
+        {view === 'media' && (
+          <MediaView customers={customers} onClose={() => setView('home')} />
         )}
 
         {/* Home */}
