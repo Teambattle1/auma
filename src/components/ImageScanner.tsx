@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { scanImage } from '../lib/scanParser'
+import { scanFile } from '../lib/scanParser'
 
 interface Props {
   onScanComplete: (data: Record<string, string>) => void
@@ -16,16 +16,15 @@ export default function ImageScanner({ onScanComplete }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = (ev) => setPreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
-
     setScanning(true)
     setProgress(0)
+    setPreview(null)
+    setRawText('')
 
     try {
-      const { parsed, rawText: text } = await scanImage(file, setProgress)
+      const { parsed, rawText: text, preview: prev } = await scanFile(file, setProgress)
       setRawText(text)
+      if (prev) setPreview(prev)
       onScanComplete(parsed)
     } catch (err: any) {
       alert('Scanning fejl: ' + err.message)
@@ -38,19 +37,18 @@ export default function ImageScanner({ onScanComplete }: Props) {
   return (
     <div>
       <p className="text-sm text-gray-600 mb-4">
-        Upload et billede af et visitkort, faktura eller dokument. Systemet scanner teksten og udfylder kundefelterne automatisk.
+        Upload et billede eller PDF. Systemet scanner teksten og udfylder kundeoplysninger og Flow-felter automatisk.
       </p>
 
       <label className="inline-flex items-center gap-2 px-5 py-3 bg-purple-600 text-white rounded-lg cursor-pointer hover:bg-purple-700 transition-colors">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
-        {scanning ? 'Scanner...' : 'Vælg billede til scanning'}
+        {scanning ? 'Scanner...' : 'Upload til scan'}
         <input
           ref={fileInput}
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf"
           onChange={handleScan}
           className="hidden"
           disabled={scanning}
@@ -69,10 +67,10 @@ export default function ImageScanner({ onScanComplete }: Props) {
         </div>
       )}
 
-      {preview && (
+      {preview && !scanning && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-2">Scannet billede:</p>
+            <p className="text-xs font-medium text-gray-500 mb-2">Scannet dokument:</p>
             <img src={preview} alt="Scanned" className="w-full rounded-lg border border-gray-200" />
           </div>
           {rawText && (

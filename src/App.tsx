@@ -127,6 +127,13 @@ export default function App() {
     showMessage('Kunde slettet!')
   }
 
+  const flowFields = new Set([
+    'ordrenr','emne','flow_id','foererhus','skaerme','kofanger','solskaerm',
+    'stige','tagbagage','luftfilter','spoiler','striber_dek','skrifttype',
+    'undervogn','hjul','kant_paa_hjul','vaerktoejsks','tank','kran','lift',
+    'lad_opbyg','fjelder','kasse','folienr','bemaerkninger',
+  ])
+
   const handleScanResult = (data: Partial<typeof formData>) => {
     setFormData(prev => ({
       ...prev,
@@ -135,6 +142,15 @@ export default function App() {
       ),
     }))
     setView(selectedCustomer ? 'edit' : 'create')
+
+    // Switch to the tab that has most data
+    const hasFlow = Object.keys(data).some(k => flowFields.has(k))
+    const hasKunde = Object.keys(data).some(k => !flowFields.has(k))
+    if (hasFlow && !hasKunde) {
+      setActiveTab('flow')
+    } else {
+      setActiveTab('kunde')
+    }
     showMessage('Data udfyldt fra scanning!')
   }
 
@@ -232,7 +248,7 @@ export default function App() {
         {view === 'scan' && (
           <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Scan dokument</h2>
+              <h2 className="text-lg font-semibold text-gray-800">Upload til scan</h2>
               <button onClick={() => setView(selectedCustomer ? 'edit' : 'home')} className="text-gray-500 hover:text-gray-700 text-sm">Luk</button>
             </div>
             <ImageScanner onScanComplete={handleScanResult} />
