@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, supabaseUrl } from '../lib/supabase'
 import { CustomerVehicle, VehicleFieldImage, FLOW_FIELDS, emptyVehicle } from '../types/customer'
 
+const isMobile = () => /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768
+
 interface Props {
   customerId: string
 }
@@ -11,15 +13,20 @@ function FieldWithImage({
   value,
   onChange,
   fieldImage,
-  onAttachImage,
+  onCamera,
+  onFile,
   onViewImage,
+  mobile,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   fieldImage: VehicleFieldImage | undefined
-  onAttachImage: () => void
-  onViewImage: (url: string) => void
+  onCamera: () => void
+  onFile: () => void
+  onViewImage: (url: string, fieldName: string) => void
+  mobile: boolean
+  fieldName: string
 }) {
   return (
     <div>
@@ -33,20 +40,27 @@ function FieldWithImage({
         />
         {fieldImage ? (
           <button
-            onClick={() => onViewImage(fieldImage.image_url)}
+            onClick={() => onViewImage(fieldImage.image_url, label)}
             className="w-9 h-9 rounded-md border-2 border-green-500 overflow-hidden shrink-0"
-            title="Vis billede"
           >
             <img src={fieldImage.image_url} alt="" className="w-full h-full object-cover" />
           </button>
-        ) : (
+        ) : mobile ? (
           <button
-            onClick={onAttachImage}
+            onClick={onCamera}
             className="w-9 h-9 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 shrink-0 transition-colors"
-            title="Tilknyt billede"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            </svg>
+          </button>
+        ) : (
+          <button
+            onClick={onFile}
+            className="w-9 h-9 rounded-md border border-dashed border-gray-300 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-400 shrink-0 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </button>
         )}
@@ -61,9 +75,15 @@ export default function FlowForm({ customerId }: Props) {
   const [formData, setFormData] = useState(emptyVehicle)
   const [fieldImages, setFieldImages] = useState<VehicleFieldImage[]>([])
   const [saving, setSaving] = useState(false)
-  const [previewImg, setPreviewImg] = useState<string | null>(null)
   const [pendingField, setPendingField] = useState<string | null>(null)
+  const [mobile] = useState(isMobile)
+  // Preview popup state
+  const [previewImg, setPreviewImg] = useState<string | null>(null)
+  const [previewLabel, setPreviewLabel] = useState('')
+  const [previewField, setPreviewField] = useState<string | null>(null)
+
   const fileRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
 
   const loadVehicles = useCallback(async () => {
     const { data } = await supabase
@@ -128,7 +148,6 @@ export default function FlowForm({ customerId }: Props) {
       .single()
     if (error) { alert('Fejl: ' + error.message); return }
     if (data) {
-      // Create image album for this vehicle
       await supabase.from('customer_albums').insert([{
         customer_id: customerId,
         name: data.emne || `Bil ${vehicles.length + 1}`,
@@ -159,40 +178,103 @@ export default function FlowForm({ customerId }: Props) {
     await loadVehicles()
   }
 
-  // Per-field image upload
-  const handleAttachImage = (fieldName: string) => {
-    setPendingField(fieldName)
-    fileRef.current?.click()
-  }
+  // Upload image for a field (and also save to vehicle album)
+  const uploadFieldImage = async (file: File, fieldName: string) => {
+    if (!activeVehicleId) return
 
-  const handleFieldImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !pendingField || !activeVehicleId) return
-
-    const fileName = `field-images/${activeVehicleId}/${pendingField}-${Date.now()}.${file.name.split('.').pop()}`
+    const ext = file.name.split('.').pop()
+    const fileName = `field-images/${activeVehicleId}/${fieldName}-${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage.from('customer-images').upload(fileName, file)
     if (upErr) { alert('Upload fejl: ' + upErr.message); return }
 
     const imageUrl = `${supabaseUrl}/storage/v1/object/public/customer-images/${fileName}`
 
-    // Remove old image for this field
-    const old = fieldImages.find(fi => fi.field_name === pendingField)
+    // Remove old field image
+    const old = fieldImages.find(fi => fi.field_name === fieldName)
     if (old) {
       const oldPath = old.image_url.split('/customer-images/')[1]
       if (oldPath) await supabase.storage.from('customer-images').remove([oldPath])
       await supabase.from('vehicle_field_images').delete().eq('id', old.id)
     }
 
+    // Save as field image
     await supabase.from('vehicle_field_images').insert([{
       vehicle_id: activeVehicleId,
-      field_name: pendingField,
+      field_name: fieldName,
       image_url: imageUrl,
       image_name: file.name,
     }])
 
-    setPendingField(null)
-    if (fileRef.current) fileRef.current.value = ''
+    // Also save to customer_images in the vehicle's album
+    const vehicle = vehicles.find(v => v.id === activeVehicleId)
+    const albumName = vehicle?.emne || `Bil ${vehicles.indexOf(vehicle!) + 1}`
+    const { data: albums } = await supabase
+      .from('customer_albums')
+      .select('id')
+      .eq('customer_id', customerId)
+      .eq('name', albumName)
+      .limit(1)
+    const albumId = albums?.[0]?.id || null
+
+    await supabase.from('customer_images').insert([{
+      customer_id: customerId,
+      album_id: albumId,
+      image_url: imageUrl,
+      image_name: `${fieldName} - ${file.name}`,
+    }])
+
     loadFieldImages(activeVehicleId)
+  }
+
+  // Camera capture (mobile)
+  const handleCameraCapture = (fieldName: string) => {
+    setPendingField(fieldName)
+    cameraRef.current?.click()
+  }
+
+  // File select (desktop)
+  const handleFileSelect = (fieldName: string) => {
+    setPendingField(fieldName)
+    fileRef.current?.click()
+  }
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !pendingField) return
+    await uploadFieldImage(file, pendingField)
+    setPendingField(null)
+    e.target.value = ''
+  }
+
+  // View image popup with retake option
+  const handleViewImage = (url: string, label: string) => {
+    // Find the field name from the label
+    const field = FLOW_FIELDS.find(f => f.label === label)
+    setPreviewImg(url)
+    setPreviewLabel(label)
+    setPreviewField(field?.key || null)
+  }
+
+  const handleRetake = () => {
+    if (!previewField) return
+    setPreviewImg(null)
+    if (mobile) {
+      handleCameraCapture(previewField)
+    } else {
+      handleFileSelect(previewField)
+    }
+  }
+
+  const handleRemoveFieldImage = async () => {
+    if (!previewField || !activeVehicleId) return
+    const fi = fieldImages.find(f => f.field_name === previewField)
+    if (fi) {
+      const path = fi.image_url.split('/customer-images/')[1]
+      if (path) await supabase.storage.from('customer-images').remove([path])
+      await supabase.from('vehicle_field_images').delete().eq('id', fi.id)
+      loadFieldImages(activeVehicleId)
+    }
+    setPreviewImg(null)
   }
 
   const getFieldImage = (fieldName: string) =>
@@ -203,8 +285,9 @@ export default function FlowForm({ customerId }: Props) {
 
   return (
     <div>
-      {/* Hidden file input for field images */}
-      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFieldImageUpload} />
+      {/* Hidden file inputs */}
+      <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
       {/* Vehicle selector */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -235,14 +318,11 @@ export default function FlowForm({ customerId }: Props) {
         </button>
       </div>
 
-      {/* No vehicles state */}
+      {/* No vehicles */}
       {vehicles.length === 0 && (
         <div className="text-center py-12 text-gray-400">
           <p className="text-sm">Ingen biler tilknyttet endnu</p>
-          <button
-            onClick={handleAddVehicle}
-            className="mt-3 px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
-          >
+          <button onClick={handleAddVehicle} className="mt-3 px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
             Tilføj første bil
           </button>
         </div>
@@ -251,7 +331,6 @@ export default function FlowForm({ customerId }: Props) {
       {/* Vehicle form */}
       {activeVehicleId && (
         <>
-          {/* Emne (vehicle name) - prominent */}
           <div className="mb-4">
             <label className="block text-xs font-medium text-gray-500 mb-1">Emne (biltype)</label>
             <input
@@ -263,25 +342,30 @@ export default function FlowForm({ customerId }: Props) {
             />
           </div>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-4">
             <div className="h-0.5 bg-red-600 flex-grow" />
             <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">Specifikationer</span>
             <div className="h-0.5 bg-red-600 flex-grow" />
           </div>
 
-          {/* Two-column spec fields with per-field image attachment */}
+          {mobile && (
+            <p className="text-xs text-gray-400 mb-3 text-center">Tryk kamera-ikon for at tage billede til en linje</p>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
             <div className="space-y-3">
               {leftFields.map(f => (
                 <FieldWithImage
                   key={f.key}
+                  fieldName={f.key}
                   label={f.label}
                   value={(formData as any)[f.key] || ''}
                   onChange={set(f.key)}
                   fieldImage={getFieldImage(f.key)}
-                  onAttachImage={() => handleAttachImage(f.key)}
-                  onViewImage={setPreviewImg}
+                  onCamera={() => handleCameraCapture(f.key)}
+                  onFile={() => handleFileSelect(f.key)}
+                  onViewImage={handleViewImage}
+                  mobile={mobile}
                 />
               ))}
             </div>
@@ -289,18 +373,20 @@ export default function FlowForm({ customerId }: Props) {
               {rightFields.map(f => (
                 <FieldWithImage
                   key={f.key}
+                  fieldName={f.key}
                   label={f.label}
                   value={(formData as any)[f.key] || ''}
                   onChange={set(f.key)}
                   fieldImage={getFieldImage(f.key)}
-                  onAttachImage={() => handleAttachImage(f.key)}
-                  onViewImage={setPreviewImg}
+                  onCamera={() => handleCameraCapture(f.key)}
+                  onFile={() => handleFileSelect(f.key)}
+                  onViewImage={handleViewImage}
+                  mobile={mobile}
                 />
               ))}
             </div>
           </div>
 
-          {/* Bemærkninger */}
           <div className="flex items-center gap-3 my-4">
             <div className="h-0.5 bg-red-600 flex-grow" />
             <span className="text-xs font-semibold text-red-700 uppercase tracking-wide">Bemærkninger</span>
@@ -313,34 +399,44 @@ export default function FlowForm({ customerId }: Props) {
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-y"
           />
 
-          {/* Save / Delete */}
           <div className="flex gap-3 mt-4">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-            >
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50">
               {saving ? 'Gemmer...' : 'Gem bil'}
             </button>
-            <button
-              onClick={handleDelete}
-              className="px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg"
-            >
+            <button onClick={handleDelete} className="px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg">
               Slet bil
             </button>
           </div>
         </>
       )}
 
-      {/* Image preview popup */}
+      {/* Image preview popup with retake/remove */}
       {previewImg && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setPreviewImg(null)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPreviewImg(null)}>
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex justify-end p-2">
-              <button onClick={() => setPreviewImg(null)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-lg">&times;</button>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <span className="text-sm font-medium text-gray-700">{previewLabel}</span>
+              <button onClick={() => setPreviewImg(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-lg">&times;</button>
             </div>
-            <div className="px-4 pb-4">
-              <img src={previewImg} alt="Felt billede" className="w-full rounded-lg" />
+            <div className="p-4">
+              <img src={previewImg} alt={previewLabel} className="w-full rounded-lg" />
+            </div>
+            <div className="flex gap-2 px-4 pb-4">
+              <button
+                onClick={handleRetake}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                </svg>
+                {mobile ? 'Tag nyt billede' : 'Vælg nyt billede'}
+              </button>
+              <button
+                onClick={handleRemoveFieldImage}
+                className="px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg"
+              >
+                Fjern
+              </button>
             </div>
           </div>
         </div>
