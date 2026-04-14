@@ -55,18 +55,16 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
       // Auto-create SCAN album if it doesn't exist
       const scanAlbum = data.find(a => a.name === 'SCAN')
       if (!scanAlbum) {
-        const { data: newAlbum } = await supabase
+        await supabase
           .from('customer_albums')
           .insert([{ customer_id: customerId, name: 'SCAN' }])
-          .select()
-          .single()
-        if (newAlbum) {
-          setAlbums(prev => [...prev, newAlbum])
-          setActiveAlbum(newAlbum.id)
-        }
-      } else {
-        // Default to SCAN album on first load
-        if (activeAlbum === null) setActiveAlbum(scanAlbum.id)
+        // Reload to get the new album
+        const { data: refreshed } = await supabase
+          .from('customer_albums')
+          .select('*')
+          .eq('customer_id', customerId)
+          .order('created_at', { ascending: true })
+        if (refreshed) setAlbums(refreshed)
       }
     }
   }, [customerId])
