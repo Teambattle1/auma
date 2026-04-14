@@ -379,7 +379,7 @@ export default function App() {
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Action bar */}
-        <div className="bg-white rounded-lg shadow-sm p-3 md:p-4 mb-4 md:mb-6 no-print">
+        <div className="bg-white rounded-lg shadow-sm border border-red-200 p-3 md:p-4 mb-4 md:mb-6 no-print">
           {/* Search field - always visible, prominent */}
           <div className="relative mb-3">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -396,11 +396,18 @@ export default function App() {
           </div>
 
           {/* Buttons row */}
-          <div className="grid grid-cols-4 gap-2 md:flex md:flex-wrap md:gap-3">
-            <button onClick={handleCreate} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-green-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-green-700 transition-colors text-xs md:text-sm">
-              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-              <span>Opret</span>
-            </button>
+          <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
+            {/* Opret + Scan grouped */}
+            <div className="flex flex-col gap-1.5">
+              <button onClick={handleCreate} className="flex items-center justify-center gap-2 px-3 py-2.5 bg-green-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-green-700 transition-colors text-xs md:text-sm">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                <span>Opret</span>
+              </button>
+              <button onClick={() => setView('scan')} className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-purple-700 transition-colors text-[11px] md:text-xs">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                <span>Scan</span>
+              </button>
+            </div>
             <button onClick={() => setView('search')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-blue-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-blue-700 transition-colors text-xs md:text-sm">
               <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <span>Find</span>
@@ -414,12 +421,6 @@ export default function App() {
               <span>PDF</span>
             </button>
           </div>
-
-          {/* Scan button - full width under action buttons */}
-          <button onClick={() => setView('scan')} className="w-full mt-2 flex items-center justify-center gap-2 px-4 py-3 md:py-2.5 bg-purple-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-purple-700 transition-colors text-sm">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-            <span>Scan</span>
-          </button>
         </div>
 
         {/* Search - full screen on mobile */}
@@ -442,7 +443,7 @@ export default function App() {
 
         {/* Scan */}
         {view === 'scan' && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-800">Upload til scan</h2>
               <button onClick={() => { setView(selectedCustomer ? 'edit' : 'home'); handleScanCancel() }} className="text-gray-500 hover:text-gray-700 text-sm">Luk</button>
@@ -463,7 +464,7 @@ export default function App() {
         {/* Customer form with tabs */}
         {(view === 'create' || view === 'edit') && (
           <div id="customer-card">
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-6">
+            <div className="bg-white rounded-lg shadow-sm border border-red-200 overflow-hidden mb-6">
               {/* Header */}
               <div className="px-6 pt-5 pb-0 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-800">
@@ -548,7 +549,7 @@ export default function App() {
 
         {/* Home */}
         {view === 'home' && (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="bg-white rounded-lg shadow-sm border border-red-200 p-12 text-center">
             <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
             </svg>
