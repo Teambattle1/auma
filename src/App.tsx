@@ -420,17 +420,17 @@ export default function App() {
               { label: 'PDF', onClick: () => handlePrintClick('pdf'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
             ].map(btn => (
               <button key={btn.label} onClick={btn.onClick} className="flex flex-col items-center gap-2 group">
-                <div className="w-16 h-16 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 group-active:scale-90"
+                <div className="w-20 h-20 md:w-14 md:h-14 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 group-active:scale-90"
                   style={{
                     background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
                     boxShadow: '0 6px 16px rgba(185, 28, 28, 0.45), inset 0 2px 2px rgba(255,255,255,0.3)',
                   }}
                 >
-                  <svg className="w-7 h-7 md:w-6 md:h-6" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                  <svg className="w-9 h-9 md:w-6 md:h-6" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                     {btn.icon}
                   </svg>
                 </div>
-                <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{btn.label}</span>
+                <span className="text-sm md:text-xs font-bold text-gray-600 uppercase tracking-wide">{btn.label}</span>
               </button>
             ))}
           </div>

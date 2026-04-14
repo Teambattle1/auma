@@ -22,3 +22,24 @@ setInterval(async () => {
     }
   } catch { /* offline or error, skip */ }
 }, 30000)
+
+// Pull-to-refresh on mobile
+let pullStartY = 0
+let pulling = false
+document.addEventListener('touchstart', (e) => {
+  if (window.scrollY === 0) {
+    pullStartY = e.touches[0].clientY
+    pulling = true
+  }
+}, { passive: true })
+
+document.addEventListener('touchmove', (e) => {
+  if (!pulling) return
+  const diff = e.touches[0].clientY - pullStartY
+  if (diff > 120 && window.scrollY === 0) {
+    pulling = false
+    window.location.reload()
+  }
+}, { passive: true })
+
+document.addEventListener('touchend', () => { pulling = false }, { passive: true })
