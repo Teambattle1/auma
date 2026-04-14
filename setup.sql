@@ -51,10 +51,19 @@ CREATE TABLE public.customers (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Kunde album (mapper)
+CREATE TABLE public.customer_albums (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Kunde billeder
 CREATE TABLE public.customer_images (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   customer_id UUID REFERENCES public.customers(id) ON DELETE CASCADE NOT NULL,
+  album_id UUID REFERENCES public.customer_albums(id) ON DELETE SET NULL,
   image_url TEXT NOT NULL,
   image_name TEXT DEFAULT '',
   created_at TIMESTAMPTZ DEFAULT now()
@@ -62,8 +71,10 @@ CREATE TABLE public.customer_images (
 
 -- RLS
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_albums ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.customer_images ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow all access to customers" ON public.customers FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all access to customer_albums" ON public.customer_albums FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all access to customer_images" ON public.customer_images FOR ALL USING (true) WITH CHECK (true);
 
 -- Updated_at trigger

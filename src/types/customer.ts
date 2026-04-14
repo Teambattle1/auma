@@ -43,9 +43,17 @@ export interface Customer {
   updated_at: string
 }
 
+export interface CustomerAlbum {
+  id: string
+  customer_id: string
+  name: string
+  created_at: string
+}
+
 export interface CustomerImage {
   id: string
   customer_id: string
+  album_id: string | null
   image_url: string
   image_name: string
   created_at: string
