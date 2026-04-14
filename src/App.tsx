@@ -395,31 +395,29 @@ export default function App() {
             />
           </div>
 
-          {/* Buttons row */}
-          <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:gap-3">
-            {/* Opret + Scan grouped */}
-            <div className="flex flex-col gap-1.5">
-              <button onClick={handleCreate} className="flex items-center justify-center gap-2 px-3 py-2.5 bg-green-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-green-700 transition-colors text-xs md:text-sm">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                <span>Opret</span>
+          {/* Action buttons - glossy red circles with labels below */}
+          <div className="flex justify-center gap-5 md:gap-6">
+            {[
+              { label: 'Opret', onClick: () => handleCreate(), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /> },
+              { label: 'Scan', onClick: () => setView('scan'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /> },
+              { label: 'Find', onClick: () => setView('search'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /> },
+              { label: 'Print', onClick: () => handlePrintClick('print'), icon: <><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></> },
+              { label: 'PDF', onClick: () => handlePrintClick('pdf'), icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> },
+            ].map(btn => (
+              <button key={btn.label} onClick={btn.onClick} className="flex flex-col items-center gap-1.5 group">
+                <div className="w-14 h-14 md:w-12 md:h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110 group-active:scale-95"
+                  style={{
+                    background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+                    boxShadow: '0 4px 12px rgba(185, 28, 28, 0.4), inset 0 1px 1px rgba(255,255,255,0.3)',
+                  }}
+                >
+                  <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {btn.icon}
+                  </svg>
+                </div>
+                <span className="text-[11px] font-semibold text-gray-600">{btn.label}</span>
               </button>
-              <button onClick={() => setView('scan')} className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-purple-700 transition-colors text-[11px] md:text-xs">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-                <span>Scan</span>
-              </button>
-            </div>
-            <button onClick={() => setView('search')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-blue-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-blue-700 transition-colors text-xs md:text-sm">
-              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              <span>Find</span>
-            </button>
-            <button onClick={() => handlePrintClick('print')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-orange-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-orange-700 transition-colors text-xs md:text-sm">
-              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-              <span>Print</span>
-            </button>
-            <button onClick={() => handlePrintClick('pdf')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-gray-700 text-white rounded-xl md:rounded-lg font-medium hover:bg-gray-800 transition-colors text-xs md:text-sm">
-              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-              <span>PDF</span>
-            </button>
+            ))}
           </div>
         </div>
 
