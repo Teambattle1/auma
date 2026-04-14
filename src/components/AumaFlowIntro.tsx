@@ -117,14 +117,8 @@ export default function AumaFlowIntro({ onComplete }: Props) {
           </div>
         </div>
 
-        {/* Subtitle - Kundekartotek */}
-        <p
-          className={`mt-6 text-sm md:text-base tracking-[0.3em] uppercase text-white/50 font-light transition-all duration-700 ${
-            phase >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
-          Kundekartotek
-        </p>
+        {/* Spacer where subtitle was */}
+        <div className="mt-6" />
 
         {/* Glowing pulse ring */}
         <div
