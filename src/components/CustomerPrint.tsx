@@ -2,7 +2,7 @@ import jsPDF from 'jspdf'
 import { Customer, CustomerImage, CustomerVehicle, FLOW_FIELDS } from '../types/customer'
 import { supabase } from '../lib/supabase'
 
-export async function generatePDF(customer: Customer, images: CustomerImage[]) {
+async function buildPDF(customer: Customer, images: CustomerImage[]): Promise<jsPDF> {
   const doc = new jsPDF('p', 'mm', 'a4')
   const pageWidth = 210
   const margin = 20
@@ -34,7 +34,6 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
   addTitle('AUMA FLOW')
   y += 2
 
-  // Kundeoplysninger
   addSection('KUNDEOPLYSNINGER')
   addFieldRow('Kundenummer', customer.kundenummer, 'Telefon', customer.telefon)
   addFieldRow('Firma', customer.firma, 'Mobil', customer.mobil)
@@ -42,7 +41,6 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
   addField('Adresse', customer.adresse)
   addField('Postnr / By', `${customer.postnummer} ${customer.by_navn}`.trim())
 
-  // Load vehicles for this customer
   const { data: vehicles } = await supabase
     .from('customer_vehicles')
     .select('*')
@@ -75,7 +73,7 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
   }
 
   if (images.length > 0) {
-    addSection('KUNDEBILLEDER')
+    addSection('BILLEDER')
     y += 2; const imgSize = 40; const gap = 5
     const cols = Math.floor(contentWidth / (imgSize + gap)); let col = 0
     for (const img of images) {
@@ -94,5 +92,24 @@ export async function generatePDF(customer: Customer, images: CustomerImage[]) {
   const now = new Date()
   doc.setFontSize(7); doc.setTextColor(150,150,150)
   doc.text(`Udskrevet: ${now.toLocaleDateString('da-DK')} ${now.toLocaleTimeString('da-DK')}`, margin, 290)
+
+  return doc
+}
+
+/** Print directly to printer */
+export async function printCustomer(customer: Customer, images: CustomerImage[]) {
+  const doc = await buildPDF(customer, images)
+  const blobUrl = doc.output('bloburl')
+  const printWindow = window.open(blobUrl as unknown as string, '_blank')
+  if (printWindow) {
+    printWindow.addEventListener('load', () => {
+      printWindow.print()
+    })
+  }
+}
+
+/** Save as PDF file */
+export async function savePDF(customer: Customer, images: CustomerImage[]) {
+  const doc = await buildPDF(customer, images)
   doc.save(`kunde-${(customer.firma || customer.navn || 'kunde').replace(/\s+/g, '-').toLowerCase()}.pdf`)
 }

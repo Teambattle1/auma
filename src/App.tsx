@@ -6,7 +6,7 @@ import FlowForm from './components/FlowForm'
 import ImageUpload from './components/ImageUpload'
 import ImageScanner from './components/ImageScanner'
 import CustomerSearch from './components/CustomerSearch'
-import { generatePDF } from './components/CustomerPrint'
+import { printCustomer, savePDF } from './components/CustomerPrint'
 import AumaFlowIntro from './components/AumaFlowIntro'
 import ScanPreview from './components/ScanPreview'
 
@@ -283,12 +283,32 @@ export default function App() {
     setScanPendingExtracted([])
   }
 
-  const handlePrint = async () => {
-    if (!selectedCustomer) {
-      showMessage('Vælg en kunde først')
-      return
+  const [showPrintPicker, setShowPrintPicker] = useState(false)
+  const [printMode, setPrintMode] = useState<'print' | 'pdf'>('print')
+
+  const handlePrintClick = (mode: 'print' | 'pdf') => {
+    setPrintMode(mode)
+    if (selectedCustomer) {
+      // Customer already selected - execute directly
+      executePrint(selectedCustomer, mode)
+    } else {
+      // Show customer picker
+      setShowPrintPicker(true)
     }
-    await generatePDF(selectedCustomer, customerImages)
+  }
+
+  const executePrint = async (customer: Customer, mode: 'print' | 'pdf') => {
+    setShowPrintPicker(false)
+    showMessage(mode === 'print' ? 'Printer...' : 'Genererer PDF...')
+    const { data: imgs } = await supabase
+      .from('customer_images')
+      .select('*')
+      .eq('customer_id', customer.id)
+    if (mode === 'print') {
+      await printCustomer(customer, imgs || [])
+    } else {
+      await savePDF(customer, imgs || [])
+    }
   }
 
   const handleImageUploaded = () => {
@@ -313,6 +333,37 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-100">
       {showIntro && <AumaFlowIntro onComplete={() => setShowIntro(false)} />}
+
+      {/* Print customer picker popup */}
+      {showPrintPicker && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowPrintPicker(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[70vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+              <h3 className="font-semibold text-gray-800">
+                {printMode === 'print' ? 'Vælg kunde til print' : 'Vælg kunde til PDF'}
+              </h3>
+              <button onClick={() => setShowPrintPicker(false)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 text-lg">&times;</button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {customers.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => executePrint(c, printMode)}
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 active:bg-blue-100 border-b border-gray-100 last:border-0 transition-colors"
+                >
+                  <div className="font-medium text-sm text-gray-800">{c.firma || c.navn || 'Ingen navn'}</div>
+                  <div className="text-xs text-gray-500">
+                    {[c.kundenummer && `#${c.kundenummer}`, c.telefon].filter(Boolean).join(' · ')}
+                  </div>
+                </button>
+              ))}
+              {customers.length === 0 && (
+                <p className="text-sm text-gray-400 text-center py-8">Ingen kunder</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <header className="bg-white shadow-sm border-b-2 border-red-600">
         <div className="max-w-5xl mx-auto px-4 py-4">
@@ -345,7 +396,7 @@ export default function App() {
           </div>
 
           {/* Buttons row */}
-          <div className="grid grid-cols-3 gap-2 md:flex md:flex-wrap md:gap-3">
+          <div className="grid grid-cols-4 gap-2 md:flex md:flex-wrap md:gap-3">
             <button onClick={handleCreate} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-green-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-green-700 transition-colors text-xs md:text-sm">
               <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
               <span>Opret</span>
@@ -354,9 +405,13 @@ export default function App() {
               <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               <span>Find</span>
             </button>
-            <button onClick={handlePrint} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-orange-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-orange-700 transition-colors text-xs md:text-sm">
+            <button onClick={() => handlePrintClick('print')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-orange-600 text-white rounded-xl md:rounded-lg font-medium hover:bg-orange-700 transition-colors text-xs md:text-sm">
               <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
               <span>Print</span>
+            </button>
+            <button onClick={() => handlePrintClick('pdf')} className="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 px-3 py-3 md:py-2.5 bg-gray-700 text-white rounded-xl md:rounded-lg font-medium hover:bg-gray-800 transition-colors text-xs md:text-sm">
+              <svg className="w-5 h-5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+              <span>PDF</span>
             </button>
           </div>
 
