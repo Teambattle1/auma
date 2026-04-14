@@ -40,6 +40,8 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
   const [activeAlbum, setActiveAlbum] = useState<string | null>(null) // null = alle
   const [newAlbumName, setNewAlbumName] = useState('')
   const [showNewAlbum, setShowNewAlbum] = useState(false)
+  const [renamingAlbum, setRenamingAlbum] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
 
   const loadAlbums = useCallback(async () => {
@@ -110,6 +112,14 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
     await loadAlbums()
   }
 
+  const handleRenameAlbum = async (albumId: string) => {
+    if (!renameValue.trim()) return
+    await supabase.from('customer_albums').update({ name: renameValue.trim() }).eq('id', albumId)
+    setRenamingAlbum(null)
+    setRenameValue('')
+    await loadAlbums()
+  }
+
   const handleDeleteAlbum = async (albumId: string) => {
     if (!confirm('Slet denne mappe? Billeder flyttes til Alle.')) return
     // Set images in this album to no album
@@ -174,19 +184,34 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
           const count = images.filter(i => i.album_id === album.id).length
           return (
             <div key={album.id} className="relative group">
-              <button
-                onClick={() => setActiveAlbum(album.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-                  activeAlbum === album.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                {album.name} ({count})
-              </button>
+              {renamingAlbum === album.id ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={renameValue}
+                    onChange={e => setRenameValue(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleRenameAlbum(album.id); if (e.key === 'Escape') setRenamingAlbum(null) }}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm w-28"
+                    autoFocus
+                  />
+                  <button onClick={() => handleRenameAlbum(album.id)} className="text-green-600 text-xs font-medium">OK</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setActiveAlbum(album.id)}
+                  onDoubleClick={() => { setRenamingAlbum(album.id); setRenameValue(album.name) }}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                    activeAlbum === album.id
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                  {album.name} ({count})
+                </button>
+              )}
               <button
                 onClick={() => handleDeleteAlbum(album.id)}
                 className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] opacity-0 group-hover:opacity-100 transition-opacity"
@@ -231,7 +256,7 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          {uploading ? 'Uploader...' : `Upload billeder${activeAlbum ? ' til ' + albums.find(a => a.id === activeAlbum)?.name : ''}`}
+          {uploading ? 'Uploader...' : 'Upload'}
           <input
             ref={fileInput}
             type="file"

@@ -62,8 +62,17 @@ export default function App() {
 
   const handleSelectCustomer = (customer: Customer) => {
     setSelectedCustomer(customer)
-    const { id, created_at, updated_at, ...rest } = customer
-    setFormData(rest)
+    setFormData({
+      kundenummer: customer.kundenummer || '',
+      firma: customer.firma || '',
+      navn: customer.navn || '',
+      adresse: customer.adresse || '',
+      postnummer: customer.postnummer || '',
+      by_navn: customer.by_navn || '',
+      telefon: customer.telefon || '',
+      mobil: customer.mobil || '',
+      noter: customer.noter || '',
+    })
     setView('edit')
   }
 
@@ -237,9 +246,9 @@ export default function App() {
   }
 
   const tabs: { key: Tab; label: string; color: string }[] = [
-    { key: 'kunde', label: 'Kundeoplysninger', color: 'blue' },
-    { key: 'flow', label: 'Flow', color: 'red' },
-    { key: 'billeder', label: `Kundebilleder (${customerImages.length})`, color: 'green' },
+    { key: 'kunde', label: 'KUNDEOPLYSNINGER', color: 'blue' },
+    { key: 'flow', label: 'FLOW', color: 'red' },
+    { key: 'billeder', label: `KUNDEBILLEDER (${customerImages.length})`, color: 'green' },
   ]
 
   return (
@@ -363,14 +372,14 @@ export default function App() {
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`px-5 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                      className={`px-5 py-3 text-xs font-bold tracking-wider border-b-3 transition-colors ${
                         activeTab === tab.key
                           ? tab.color === 'blue'
-                            ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+                            ? 'border-blue-600 text-blue-700 bg-blue-50'
                             : tab.color === 'red'
-                            ? 'border-red-600 text-red-700 bg-red-50/50'
-                            : 'border-green-600 text-green-700 bg-green-50/50'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            ? 'border-red-600 text-red-700 bg-red-50'
+                            : 'border-green-600 text-green-700 bg-green-50'
+                          : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
                       }`}
                     >
                       {tab.label}
@@ -385,8 +394,12 @@ export default function App() {
                   <CustomerForm formData={formData} setFormData={setFormData} />
                 )}
 
-                {activeTab === 'flow' && (
-                  <FlowForm formData={formData} setFormData={setFormData} />
+                {activeTab === 'flow' && selectedCustomer && (
+                  <FlowForm customerId={selectedCustomer.id} />
+                )}
+
+                {activeTab === 'flow' && !selectedCustomer && (
+                  <p className="text-sm text-gray-400 text-center py-8">Gem kunden først for at tilføje biler</p>
                 )}
 
                 {activeTab === 'billeder' && view === 'edit' && selectedCustomer && (

@@ -10,11 +10,11 @@ export default function AumaFlowIntro({ onComplete }: Props) {
 
   useEffect(() => {
     const timers = [
-      setTimeout(() => setPhase(1), 200),
-      setTimeout(() => setPhase(2), 1000),
-      setTimeout(() => setPhase(3), 1800),
-      setTimeout(() => setPhase(4), 3000),
-      setTimeout(() => onComplete(), 3800),
+      setTimeout(() => setPhase(1), 300),
+      setTimeout(() => setPhase(2), 1200),
+      setTimeout(() => setPhase(3), 2200),
+      setTimeout(() => setPhase(4), 3500),
+      setTimeout(() => onComplete(), 4500),
     ]
     return () => timers.forEach(clearTimeout)
   }, [onComplete])

@@ -30,8 +30,7 @@ export default function CustomerSearch({ customers, onSelect, mobile }: Props) {
       c.mobil.includes(q) ||
       c.adresse.toLowerCase().includes(q) ||
       c.by_navn.toLowerCase().includes(q) ||
-      c.ordrenr.includes(q) ||
-      c.emne.toLowerCase().includes(q)
+      c.noter.toLowerCase().includes(q)
     ).slice(0, 50)
   }, [query, customers])
 
