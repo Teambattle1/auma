@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="12" fill="#DC2626"/>
+  <g fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Truck cab -->
+    <path d="M8 42V26a4 4 0 014-4h14l6 8h10a4 4 0 014 4v8"/>
+    <!-- Truck bed -->
+    <line x1="32" y1="22" x2="32" y2="42"/>
+    <!-- Bottom line -->
+    <line x1="6" y1="42" x2="58" y2="42"/>
+    <!-- Wheels -->
+    <circle cx="18" cy="46" r="4" fill="white"/>
+    <circle cx="44" cy="46" r="4" fill="white"/>
+  </g>
+</svg>
