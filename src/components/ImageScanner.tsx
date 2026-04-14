@@ -1,85 +1,8 @@
 import { useState, useRef } from 'react'
-import Tesseract from 'tesseract.js'
+import { scanImage } from '../lib/scanParser'
 
 interface Props {
   onScanComplete: (data: Record<string, string>) => void
-}
-
-function parseScannedText(text: string): Record<string, string> {
-  const result: Record<string, string> = {}
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-  const fullText = lines.join(' ')
-
-  // Email
-  const emailMatch = fullText.match(/[\w.-]+@[\w.-]+\.\w{2,}/i)
-  if (emailMatch) result.email = emailMatch[0]
-
-  // Phone numbers
-  const phoneMatches = fullText.match(/(?:\+45\s?)?(?:\d{2}\s?){4}/g)
-  if (phoneMatches) {
-    if (phoneMatches[0]) result.telefon = phoneMatches[0].trim()
-    if (phoneMatches[1]) result.mobil = phoneMatches[1].trim()
-  }
-
-  // CVR
-  const cvrMatch = fullText.match(/(?:CVR|cvr|DK)[:\s-]*(\d{8})/i)
-  if (cvrMatch) result.cvr_nummer = cvrMatch[1]
-
-  // Postnummer + By (Danish zip codes are 4 digits)
-  const zipMatch = fullText.match(/\b(\d{4})\s+([A-ZÆØÅa-zæøå]+(?:\s[A-ZÆØÅa-zæøå]+)?)\b/)
-  if (zipMatch) {
-    const zip = parseInt(zipMatch[1])
-    if (zip >= 1000 && zip <= 9999) {
-      result.postnummer = zipMatch[1]
-      result.by_navn = zipMatch[2]
-    }
-  }
-
-  // Website / Company hints
-  const webMatch = fullText.match(/(?:www\.[\w.-]+\.\w{2,}|[\w-]+\.dk)/i)
-
-  // Try to detect company name (usually first line or line before address)
-  if (lines.length > 0) {
-    // First non-email, non-phone line is often the company name
-    for (const line of lines) {
-      if (line.match(/[@\d]{4,}/) || line.match(/(?:tlf|tel|mob|fax|mail|www)/i)) continue
-      if (line.length > 2 && line.length < 60) {
-        result.firma_navn = line
-        break
-      }
-    }
-  }
-
-  // Try to detect contact person (line that looks like a name)
-  const namePattern = /^[A-ZÆØÅ][a-zæøå]+\s[A-ZÆØÅ][a-zæøå]+$/
-  for (const line of lines) {
-    if (line !== result.firma_navn && namePattern.test(line)) {
-      result.kontaktperson = line
-      break
-    }
-  }
-
-  // Address (line containing a number followed by text, typical Danish addresses)
-  const addrMatch = lines.find(l =>
-    /\b\d+[A-Za-z]?\b/.test(l) &&
-    !/[@]/.test(l) &&
-    !/(?:CVR|tlf|tel|mob|fax)/i.test(l) &&
-    l !== result.firma_navn &&
-    l.length > 5
-  )
-  if (addrMatch) {
-    result.adresse = addrMatch
-      .replace(/\b\d{4}\s+[A-ZÆØÅa-zæøå]+.*$/, '')
-      .trim()
-  }
-
-  // If we found a web domain, use it as a hint for company name
-  if (!result.firma_navn && webMatch) {
-    const domain = webMatch[0].replace(/^www\./, '').replace(/\.dk$/, '')
-    result.firma_navn = domain.charAt(0).toUpperCase() + domain.slice(1)
-  }
-
-  return result
 }
 
 export default function ImageScanner({ onScanComplete }: Props) {
@@ -93,7 +16,6 @@ export default function ImageScanner({ onScanComplete }: Props) {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Show preview
     const reader = new FileReader()
     reader.onload = (ev) => setPreview(ev.target?.result as string)
     reader.readAsDataURL(file)
@@ -102,17 +24,8 @@ export default function ImageScanner({ onScanComplete }: Props) {
     setProgress(0)
 
     try {
-      const result = await Tesseract.recognize(file, 'dan+eng', {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            setProgress(Math.round(m.progress * 100))
-          }
-        },
-      })
-
-      const text = result.data.text
+      const { parsed, rawText: text } = await scanImage(file, setProgress)
       setRawText(text)
-      const parsed = parseScannedText(text)
       onScanComplete(parsed)
     } catch (err: any) {
       alert('Scanning fejl: ' + err.message)
@@ -144,7 +57,6 @@ export default function ImageScanner({ onScanComplete }: Props) {
         />
       </label>
 
-      {/* Progress bar */}
       {scanning && (
         <div className="mt-4">
           <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
@@ -152,15 +64,11 @@ export default function ImageScanner({ onScanComplete }: Props) {
             <span>{progress}%</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="bg-purple-600 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
         </div>
       )}
 
-      {/* Preview + raw text */}
       {preview && (
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
