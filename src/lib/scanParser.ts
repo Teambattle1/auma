@@ -9,6 +9,60 @@ export function parseScannedText(text: string): Record<string, string> {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const fullText = lines.join(' ')
 
+  // --- Label-based parsing (structured documents like customer cards) ---
+  // Maps label patterns to our field names
+  const labelMap: [RegExp, string][] = [
+    [/kunde(?:nummer|nr\.?)\s*[:.]?\s*/i, 'kundenummer'],
+    [/firma\s*[:.]?\s*/i, 'firma'],
+    [/navn\s*[:.]?\s*/i, 'navn'],
+    [/adresse\s*[:.]?\s*/i, 'adresse'],
+    [/post(?:nummer|nr\.?)\s*[:.]?\s*/i, 'postnummer'],
+    [/(?:^|\s)by\s*[:.]?\s*/i, 'by_navn'],
+    [/telefonnummer\s*2?\s*[:.]?\s*/i, 'telefonnummer'],
+    [/telefonnr\.?\s*[:.]?\s*/i, 'telefonnummer'],
+    [/tlf\.?\s*[:.]?\s*/i, 'telefonnummer'],
+    [/fax\s*[:.]?\s*/i, 'fax'],
+    [/mobil(?:telefon|nr\.?)?\s*[:.]?\s*/i, 'mobiltelefon'],
+  ]
+
+  // Try to extract labeled fields from each line
+  let foundLabels = false
+  for (const line of lines) {
+    for (const [pattern, field] of labelMap) {
+      const match = line.match(pattern)
+      if (match) {
+        const value = line.slice(match.index! + match[0].length).trim()
+        if (value && value !== '-') {
+          // Handle second telefonnummer/mobiltelefon
+          if (field === 'telefonnummer' && result.telefonnummer) {
+            result.telefonnummer2 = value
+          } else if (field === 'mobiltelefon' && result.mobiltelefon) {
+            result.mobiltelefon2 = value
+          } else {
+            result[field] = value
+          }
+          foundLabels = true
+        }
+        break
+      }
+    }
+  }
+
+  // Also check for "Postnummer: 2980  By: Kokkedal" style combined lines
+  for (const line of lines) {
+    const comboMatch = line.match(/post(?:nummer|nr\.?)\s*[:.]?\s*(\d{4})\s+(?:by\s*[:.]?\s*)?([A-ZÆØÅa-zæøå]+(?:\s[A-ZÆØÅa-zæøå]+)?)/i)
+    if (comboMatch) {
+      result.postnummer = comboMatch[1]
+      result.by_navn = comboMatch[2]
+      foundLabels = true
+    }
+  }
+
+  // If we found labeled fields, return early - structured document
+  if (foundLabels) return result
+
+  // --- Fallback: free-form parsing (business cards, invoices etc.) ---
+
   // Phone numbers
   const phoneMatches = fullText.match(/(?:\+45\s?)?(?:\d{2}\s?){4}/g)
   if (phoneMatches) {
@@ -33,7 +87,7 @@ export function parseScannedText(text: string): Record<string, string> {
   // Website / Company hints
   const webMatch = fullText.match(/(?:www\.[\w.-]+\.\w{2,}|[\w-]+\.dk)/i)
 
-  // Try to detect company/firma name (usually first line or line before address)
+  // Try to detect company/firma name
   if (lines.length > 0) {
     for (const line of lines) {
       if (line.match(/[@\d]{4,}/) || line.match(/(?:tlf|tel|mob|fax|mail|www)/i)) continue
@@ -67,7 +121,7 @@ export function parseScannedText(text: string): Record<string, string> {
       .trim()
   }
 
-  // If we found a web domain, use it as a hint for firma
+  // Web domain as firma hint
   if (!result.firma && webMatch) {
     const domain = webMatch[0].replace(/^www\./, '').replace(/\.dk$/, '')
     result.firma = domain.charAt(0).toUpperCase() + domain.slice(1)
