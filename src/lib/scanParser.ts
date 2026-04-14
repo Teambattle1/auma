@@ -13,7 +13,6 @@ const LABEL_DEFS: [string, string][] = [
   ['Kundenummer', 'kundenummer'],
   ['Kundenr', 'kundenummer'],
   ['Firma', 'firma'],
-  ['Navn', 'navn'],
   ['Adresse', 'adresse'],
   ['Postnummer', 'postnummer'],
   ['Postnr', 'postnummer'],
@@ -163,6 +162,21 @@ export function parseScannedText(text: string): Record<string, string> {
         result[field] = value
       }
       foundLabels = true
+    }
+  }
+
+  // Special handling for "Navn:" - only accept if followed by a person name (not "døre 65/45" etc.)
+  for (const line of lines) {
+    if (bemLineIndices.has(lines.indexOf(line))) continue
+    const navnMatch = line.match(/^Navn\s*[:.]?\s+(.+)/i)
+    if (navnMatch) {
+      const val = navnMatch[1].trim()
+      // Only accept as person name if it's not "-" and looks like a name (letters, no numbers)
+      if (val && val !== '-' && /^[A-ZÆØÅa-zæøå\s.]+$/.test(val) && val.length > 1) {
+        result.navn = val
+        foundLabels = true
+      }
+      break // Only match first occurrence
     }
   }
 
