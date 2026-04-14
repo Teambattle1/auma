@@ -29,10 +29,15 @@ export default function App() {
   const [message, setMessage] = useState('')
 
   const loadCustomers = useCallback(async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('customers')
       .select('*')
       .order('firma', { ascending: true })
+    if (error) {
+      console.error('Load customers error:', error)
+      showMessage('DB fejl: ' + error.message)
+      return
+    }
     if (data) setCustomers(data)
   }, [])
 
