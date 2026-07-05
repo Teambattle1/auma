@@ -134,16 +134,24 @@ export default function ImageUpload({ customerId, images, onImageUploaded, onIma
 
     setUploading(true)
     try {
-      for (let file of Array.from(files)) {
-        if (file.type.startsWith('image/')) {
-          file = await fixOrientation(file)
+      for (const raw of Array.from(files)) {
+        // Kun raster-billeder (bevidst UDEN svg — image/svg+xml kan bære scripts og
+        // ville blive stored-XSS via den public bucket-URL). + rimelig størrelsesgrænse.
+        if (!/^image\/(png|jpe?g|gif|webp|heic|heif)$/i.test(raw.type)) {
+          alert(`"${raw.name}" er ikke et understøttet billede (PNG, JPG, GIF, WEBP, HEIC).`)
+          continue
         }
+        if (raw.size > 20 * 1024 * 1024) {
+          alert(`"${raw.name}" er for stort (maks 20MB).`)
+          continue
+        }
+        const file = await fixOrientation(raw)
         const ext = file.name.split('.').pop()
         const fileName = `${customerId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
         const { error: uploadError } = await supabase.storage
           .from('customer-images')
-          .upload(fileName, file)
+          .upload(fileName, file, { contentType: file.type || 'image/jpeg' })
         if (uploadError) throw uploadError
 
         const imageUrl = `${supabaseUrl}/storage/v1/object/public/customer-images/${fileName}`
