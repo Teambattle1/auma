@@ -28,6 +28,11 @@ jobs:
             -o /dev/null
           echo "Supabase svarede - projektet er aktivt"
 
+      - name: Hjælp ved fejl
+        if: failure()
+        run: |
+          echo "::error::Supabase svarede ikke - projektet er formentlig sat på pause. Gendan det manuelt i dashboardet: https://supabase.com/dashboard/project/jxyzrkrfbkrsdkmjqxwy - derefter holder dette workflow det vaagent."
+
       # GitHub slår scheduled workflows fra efter 60 dages inaktivitet i
       # repoet; dette kald nulstiller den timer ved hver kørsel.
       - name: Hold workflowet aktivt
