@@ -28,6 +28,7 @@ Stack: React 18 + TypeScript + Vite + Tailwind. Backend is Supabase (Postgres + 
 - Schema lives in `setup.sql` — a **destructive drop-and-recreate script** run manually in the Supabase SQL editor. It is the source of truth for the schema; keep it in sync with `src/types/customer.ts` when changing tables. RLS is enabled but with allow-all policies (no auth in the app).
 - Tables: `customers` → `customer_vehicles` (one per truck, the "Flow" tab) → `vehicle_field_images` (one image per flow field); `customers` → `customer_images` (gallery, optional `customer_albums`).
 - Images go in the public storage bucket `customer-images`; rows store the full public URL, built as `${supabaseUrl}/storage/v1/object/public/customer-images/<path>`. Deletion parses the path back out of the URL (see `handleImageDelete` in `App.tsx`).
+- `.github/workflows/supabase-keepalive.yml` pings the REST API twice a week so the free-tier project isn't paused after 7 idle days. It greps the URL and anon key out of `src/lib/supabase.ts`, so keep that file's format stable if you touch it.
 
 ### OCR scan pipeline
 
