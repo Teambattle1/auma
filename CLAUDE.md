@@ -67,6 +67,11 @@ The vehicle field list is duplicated by design; keep all in sync:
   or two relevant links, e.g. "Netlify deploy preview is ready: <URL>".
 - Keep chat replies short and human-readable; the user often reads them on a
   phone.
+- Do not subscribe to pull-request activity (`subscribe_pr_activity`) unless
+  the user explicitly asks for PR monitoring: the raw GitHub/Netlify event
+  notifications are rendered verbatim in the chat, which is exactly the
+  noise these rules exist to prevent. To follow up on a PR, use a quiet
+  scheduled check-in (e.g. `send_later`) instead.
 
 ## Task tracking (IMPORTANT)
 
